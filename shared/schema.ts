@@ -63,13 +63,19 @@ export const insertCreditCardSchema = createInsertSchema(creditCards)
       ),
     expiryDate: z.string()
       .refine(
-        (val) => /^(0[1-9]|1[0-2])\/([0-9]{2})$/.test(val),
-        "Invalid expiry date format (MM/YY)"
+        (val) => {
+          // Check basic format MM/YY
+          if (!/^\d{2}\/\d{2}$/.test(val)) return false;
+
+          const [month, year] = val.split("/").map(Number);
+          // Month must be between 1 and 12
+          if (month < 1 || month > 12) return false;
+
+          // Year must be current year or later
+          return year >= currentYear;
+        },
+        `Expiry date must be in format MM/YY where MM is 01-12 and YY is ${currentYear} or later`
       )
-      .refine((val) => {
-        const [month, year] = val.split("/").map(Number);
-        return year >= currentYear;
-      }, `Expiry year must be ${currentYear} or later`)
   });
 
 export type InsertUser = z.infer<typeof insertUserSchema>;

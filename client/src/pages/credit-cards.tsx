@@ -38,6 +38,9 @@ function formatExpiryDate(value: string) {
     if (month > 12) {
       return "12/" + cleaned.slice(2, 4);
     }
+    if (month < 1) {
+      return "01/" + cleaned.slice(2, 4);
+    }
     return cleaned.slice(0, 2) + "/" + cleaned.slice(2, 4);
   }
 
