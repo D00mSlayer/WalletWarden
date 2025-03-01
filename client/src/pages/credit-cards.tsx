@@ -25,7 +25,7 @@ import { Loader2, PlusCircle, Pencil, Trash2 } from "lucide-react";
 import { SiVisa, SiMastercard, SiAmericanexpress } from "react-icons/si";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "wouter";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 
 function formatExpiryDate(value: string) {
   // Remove any non-digit characters
@@ -153,6 +153,11 @@ function CardForm({ onSubmit, defaultValues }: any) {
   const cardNetwork = form.watch("cardNetwork");
   const [prevNetwork, setPrevNetwork] = useState(cardNetwork);
 
+  // References for form fields
+  const expiryRef = useRef<HTMLInputElement>(null);
+  const cvvRef = useRef<HTMLInputElement>(null);
+  const issuerRef = useRef<HTMLInputElement>(null);
+
   useEffect(() => {
     if (prevNetwork === cardNetwork) return;
 
@@ -166,10 +171,48 @@ function CardForm({ onSubmit, defaultValues }: any) {
     setPrevNetwork(cardNetwork);
   }, [cardNetwork, prevNetwork, form]);
 
-  // Handle expiry date formatting
+  // Handle card number completion
+  const handleCardNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    const maxLength = cardNetwork === "American Express" ? 15 : 16;
+    if (value.length === maxLength) {
+      expiryRef.current?.focus();
+    }
+  };
+
+  // Handle expiry date formatting and completion
   const handleExpiryChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const formatted = formatExpiryDate(e.target.value);
-    form.setValue("expiryDate", formatted);
+    const value = e.target.value;
+    const cleaned = value.replace(/\D/g, "");
+
+    // Add slash after month if we have at least 2 digits
+    if (cleaned.length >= 2) {
+      const month = parseInt(cleaned.slice(0, 2));
+      // Only allow months 01-12
+      if (month > 12) {
+        form.setValue("expiryDate", "12/" + cleaned.slice(2, 4));
+      } else if (month < 1) {
+        form.setValue("expiryDate", "01/" + cleaned.slice(2, 4));
+      } else {
+        form.setValue("expiryDate", cleaned.slice(0, 2) + "/" + cleaned.slice(2, 4));
+      }
+
+      // Auto focus to CVV if expiry is complete (MM/YY format)
+      if (cleaned.length >= 4) {
+        cvvRef.current?.focus();
+      }
+    } else {
+      form.setValue("expiryDate", cleaned);
+    }
+  };
+
+  // Handle CVV completion
+  const handleCvvChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    const maxLength = cardNetwork === "American Express" ? 4 : 3;
+    if (value.length === maxLength) {
+      issuerRef.current?.focus();
+    }
   };
 
   return (
@@ -211,6 +254,7 @@ function CardForm({ onSubmit, defaultValues }: any) {
           inputMode="numeric"
           pattern="[0-9]*"
           {...form.register("cardNumber")}
+          onChange={handleCardNumberChange}
           maxLength={cardNetwork === "American Express" ? 15 : 16}
         />
         {form.formState.errors.cardNumber && (
@@ -229,6 +273,7 @@ function CardForm({ onSubmit, defaultValues }: any) {
             placeholder="MM/YY"
             onChange={handleExpiryChange}
             maxLength={5}
+            ref={expiryRef}
           />
           {form.formState.errors.expiryDate && (
             <p className="text-sm text-red-500">{form.formState.errors.expiryDate.message as string}</p>
@@ -242,7 +287,9 @@ function CardForm({ onSubmit, defaultValues }: any) {
             inputMode="numeric"
             pattern="[0-9]*"
             {...form.register("cvv")}
+            onChange={handleCvvChange}
             maxLength={cardNetwork === "American Express" ? 4 : 3}
+            ref={cvvRef}
           />
           {form.formState.errors.cvv && (
             <p className="text-sm text-red-500">{form.formState.errors.cvv.message as string}</p>
@@ -251,10 +298,10 @@ function CardForm({ onSubmit, defaultValues }: any) {
       </div>
 
       <div>
-        <Label htmlFor="bankName">Bank Name</Label>
-        <Input id="bankName" {...form.register("bankName")} />
-        {form.formState.errors.bankName && (
-          <p className="text-sm text-red-500">{form.formState.errors.bankName.message as string}</p>
+        <Label htmlFor="issuer">Issuer</Label>
+        <Input id="issuer" {...form.register("issuer")} ref={issuerRef} />
+        {form.formState.errors.issuer && (
+          <p className="text-sm text-red-500">{form.formState.errors.issuer.message as string}</p>
         )}
       </div>
 
@@ -286,7 +333,7 @@ function CreditCardItem({ card, onUpdate, onDelete }: any) {
       <CardHeader className="flex flex-row items-start justify-between pb-8">
         <div>
           <CardTitle className="text-lg font-normal mb-1">{card.cardName}</CardTitle>
-          <div className="text-xs opacity-75">{card.bankName}</div>
+          <div className="text-xs opacity-75">{card.issuer}</div>
         </div>
         <div className="flex gap-2">
           <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>

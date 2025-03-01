@@ -16,7 +16,7 @@ export const creditCards = pgTable("credit_cards", {
   expiryDate: text("expiry_date").notNull(),
   cvv: text("cvv").notNull(),
   cardNetwork: text("card_network").notNull(),
-  bankName: text("bank_name").notNull(),
+  issuer: text("issuer").notNull(),
 });
 
 export const insertUserSchema = createInsertSchema(users).pick({
@@ -35,7 +35,7 @@ export const insertCreditCardSchema = createInsertSchema(creditCards)
     expiryDate: true,
     cvv: true,
     cardNetwork: true,
-    bankName: true,
+    issuer: true,
   })
   .extend({
     cardNetwork: z.enum(cardNetworks),
@@ -63,16 +63,10 @@ export const insertCreditCardSchema = createInsertSchema(creditCards)
       ),
     expiryDate: z.string()
       .refine(
-        (val) => {
-          // Check basic format MM/YY
+        val => {
           if (!/^\d{2}\/\d{2}$/.test(val)) return false;
-
           const [month, year] = val.split("/").map(Number);
-          // Month must be between 1 and 12
-          if (month < 1 || month > 12) return false;
-
-          // Year must be current year or later
-          return year >= currentYear;
+          return month >= 1 && month <= 12 && year >= currentYear;
         },
         `Expiry date must be in format MM/YY and ${currentYear} or later`
       ),
