@@ -147,7 +147,16 @@ export default function CreditCards() {
 function CardForm({ onSubmit, defaultValues }: any) {
   const form = useForm({
     resolver: zodResolver(insertCreditCardSchema),
-    defaultValues,
+    defaultValues: {
+      cardName: "",
+      cardNumber: "",
+      expiryDate: "",
+      cvv: "",
+      cardNetwork: "",
+      issuer: "",
+      ...defaultValues
+    },
+    mode: "onChange" // Enable real-time validation
   });
 
   const cardNetwork = form.watch("cardNetwork");
@@ -174,6 +183,7 @@ function CardForm({ onSubmit, defaultValues }: any) {
   // Handle card number completion
   const handleCardNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
+    form.setValue("cardNumber", value, { shouldValidate: true });
     const maxLength = cardNetwork === "American Express" ? 15 : 16;
     if (value.length === maxLength) {
       expiryRef.current?.focus();
@@ -190,11 +200,11 @@ function CardForm({ onSubmit, defaultValues }: any) {
       const month = parseInt(cleaned.slice(0, 2));
       // Only allow months 01-12
       if (month > 12) {
-        form.setValue("expiryDate", "12/" + cleaned.slice(2, 4));
+        form.setValue("expiryDate", "12/" + cleaned.slice(2, 4), { shouldValidate: true });
       } else if (month < 1) {
-        form.setValue("expiryDate", "01/" + cleaned.slice(2, 4));
+        form.setValue("expiryDate", "01/" + cleaned.slice(2, 4), { shouldValidate: true });
       } else {
-        form.setValue("expiryDate", cleaned.slice(0, 2) + "/" + cleaned.slice(2, 4));
+        form.setValue("expiryDate", cleaned.slice(0, 2) + "/" + cleaned.slice(2, 4), { shouldValidate: true });
       }
 
       // Auto focus to CVV if expiry is complete (MM/YY format)
@@ -202,13 +212,14 @@ function CardForm({ onSubmit, defaultValues }: any) {
         cvvRef.current?.focus();
       }
     } else {
-      form.setValue("expiryDate", cleaned);
+      form.setValue("expiryDate", cleaned, { shouldValidate: true });
     }
   };
 
   // Handle CVV completion
   const handleCvvChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
+    form.setValue("cvv", value, { shouldValidate: true });
     const maxLength = cardNetwork === "American Express" ? 4 : 3;
     if (value.length === maxLength) {
       issuerRef.current?.focus();
@@ -229,7 +240,7 @@ function CardForm({ onSubmit, defaultValues }: any) {
         <Label htmlFor="cardNetwork">Card Network</Label>
         <Select
           value={form.watch("cardNetwork")}
-          onValueChange={(value) => form.setValue("cardNetwork", value)}
+          onValueChange={(value) => form.setValue("cardNetwork", value, { shouldValidate: true })}
         >
           <SelectTrigger>
             <SelectValue placeholder="Select card network" />
