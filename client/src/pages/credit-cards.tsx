@@ -23,18 +23,27 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Loader2, PlusCircle, Pencil, Trash2 } from "lucide-react";
 import { SiVisa, SiMastercard, SiAmericanexpress } from "react-icons/si";
+import { RiVisaLine } from "react-icons/ri"; // For Rupay icon since there's no direct Rupay icon
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "wouter";
 import { useState, useEffect, useRef } from "react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 function formatExpiryDate(value: string) {
-  // Remove any non-digit characters
   const cleaned = value.replace(/\D/g, "");
 
-  // Add slash after month if we have at least 2 digits
   if (cleaned.length >= 2) {
     const month = parseInt(cleaned.slice(0, 2));
-    // Only allow months 01-12
     if (month > 12) {
       return "12/" + cleaned.slice(2, 4);
     }
@@ -62,7 +71,7 @@ export default function CreditCards() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/credit-cards"] });
       toast({ title: "Credit card added successfully" });
-      setIsOpen(false); // Close modal on success
+      setIsOpen(false);
     },
   });
 
@@ -74,7 +83,7 @@ export default function CreditCards() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/credit-cards"] });
       toast({ title: "Credit card updated successfully" });
-      setIsOpen(false); // Close modal on success
+      setIsOpen(false);
     },
   });
 
@@ -148,21 +157,19 @@ function CardForm({ onSubmit, defaultValues }: any) {
   const form = useForm({
     resolver: zodResolver(insertCreditCardSchema),
     defaultValues: {
-      cardName: "",
-      cardNumber: "",
-      expiryDate: "",
-      cvv: "",
-      cardNetwork: "",
-      issuer: "",
-      ...defaultValues
+      cardName: defaultValues?.cardName || "",
+      cardNumber: defaultValues?.cardNumber || "",
+      expiryDate: defaultValues?.expiryDate || "",
+      cvv: defaultValues?.cvv || "",
+      cardNetwork: defaultValues?.cardNetwork || "",
+      issuer: defaultValues?.issuer || "",
     },
-    mode: "onChange" // Enable real-time validation
+    mode: "onChange",
   });
 
   const cardNetwork = form.watch("cardNetwork");
   const [prevNetwork, setPrevNetwork] = useState(cardNetwork);
 
-  // References for form fields
   const expiryRef = useRef<HTMLInputElement>(null);
   const cvvRef = useRef<HTMLInputElement>(null);
   const issuerRef = useRef<HTMLInputElement>(null);
@@ -170,7 +177,6 @@ function CardForm({ onSubmit, defaultValues }: any) {
   useEffect(() => {
     if (prevNetwork === cardNetwork) return;
 
-    // If switching to or from Amex, clear sensitive fields
     if (cardNetwork === "American Express" || prevNetwork === "American Express") {
       form.setValue("cardNumber", "");
       form.setValue("cvv", "");
@@ -180,7 +186,6 @@ function CardForm({ onSubmit, defaultValues }: any) {
     setPrevNetwork(cardNetwork);
   }, [cardNetwork, prevNetwork, form]);
 
-  // Handle card number completion
   const handleCardNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     form.setValue("cardNumber", value, { shouldValidate: true });
@@ -190,15 +195,12 @@ function CardForm({ onSubmit, defaultValues }: any) {
     }
   };
 
-  // Handle expiry date formatting and completion
   const handleExpiryChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     const cleaned = value.replace(/\D/g, "");
 
-    // Add slash after month if we have at least 2 digits
     if (cleaned.length >= 2) {
       const month = parseInt(cleaned.slice(0, 2));
-      // Only allow months 01-12
       if (month > 12) {
         form.setValue("expiryDate", "12/" + cleaned.slice(2, 4), { shouldValidate: true });
       } else if (month < 1) {
@@ -207,7 +209,6 @@ function CardForm({ onSubmit, defaultValues }: any) {
         form.setValue("expiryDate", cleaned.slice(0, 2) + "/" + cleaned.slice(2, 4), { shouldValidate: true });
       }
 
-      // Auto focus to CVV if expiry is complete (MM/YY format)
       if (cleaned.length >= 4) {
         cvvRef.current?.focus();
       }
@@ -216,7 +217,6 @@ function CardForm({ onSubmit, defaultValues }: any) {
     }
   };
 
-  // Handle CVV completion
   const handleCvvChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     form.setValue("cvv", value, { shouldValidate: true });
@@ -226,17 +226,29 @@ function CardForm({ onSubmit, defaultValues }: any) {
     }
   };
 
-  // Handle issuer change
+  const capitalizeFirstWord = (str: string) => {
+    return str.replace(/^\w/, c => c.toUpperCase());
+  };
+
   const handleIssuerChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
+    const value = capitalizeFirstWord(e.target.value);
     form.setValue("issuer", value, { shouldValidate: true });
+  };
+
+  const handleCardNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = capitalizeFirstWord(e.target.value);
+    form.setValue("cardName", value, { shouldValidate: true });
   };
 
   return (
     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
       <div>
         <Label htmlFor="cardName">Card Name</Label>
-        <Input id="cardName" {...form.register("cardName")} />
+        <Input
+          id="cardName"
+          {...form.register("cardName")}
+          onChange={handleCardNameChange}
+        />
         {form.formState.errors.cardName && (
           <p className="text-sm text-red-500">{form.formState.errors.cardName.message as string}</p>
         )}
@@ -316,11 +328,11 @@ function CardForm({ onSubmit, defaultValues }: any) {
 
       <div>
         <Label htmlFor="issuer">Issuer</Label>
-        <Input 
-          id="issuer" 
-          {...form.register("issuer")} 
+        <Input
+          id="issuer"
+          {...form.register("issuer")}
           onChange={handleIssuerChange}
-          ref={issuerRef} 
+          ref={issuerRef}
         />
         {form.formState.errors.issuer && (
           <p className="text-sm text-red-500">{form.formState.errors.issuer.message as string}</p>
@@ -342,6 +354,8 @@ function getCardIcon(network: string) {
       return <SiMastercard className="h-8 w-8" />;
     case "American Express":
       return <SiAmericanexpress className="h-8 w-8" />;
+    case "Rupay":
+      return <RiVisaLine className="h-8 w-8" />;
     default:
       return null;
   }
@@ -371,14 +385,30 @@ function CreditCardItem({ card, onUpdate, onDelete }: any) {
               <CardForm onSubmit={onUpdate} defaultValues={card} />
             </DialogContent>
           </Dialog>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="text-white hover:text-white/80"
-            onClick={onDelete}
-          >
-            <Trash2 className="h-4 w-4" />
-          </Button>
+
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="text-white hover:text-white/80"
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Delete Credit Card</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Are you sure you want to delete this credit card? This action cannot be undone.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={onDelete}>Delete</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
       </CardHeader>
       <CardContent>
