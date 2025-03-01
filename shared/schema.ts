@@ -42,23 +42,23 @@ export const insertCreditCardSchema = createInsertSchema(creditCards)
     cardNumber: z.string()
       .refine(val => /^\d+$/.test(val), "Card number must contain only digits")
       .refine(
-        (val, { input }) => {
-          const isAmex = input?.cardNetwork === "American Express";
+        (val, context) => {
+          const isAmex = context.path?.[0] === "cardNetwork" && context.data?.cardNetwork === "American Express";
           return isAmex ? val.length === 15 : val.length === 16;
         },
-        ({ input }) => ({
-          message: `${input?.cardNetwork === "American Express" ? "15" : "16"} digits required for ${input?.cardNetwork}`,
+        ({ path, data }) => ({
+          message: `${data?.cardNetwork === "American Express" ? "15" : "16"} digits required for ${data?.cardNetwork}`,
         })
       ),
     cvv: z.string()
       .refine(val => /^\d+$/.test(val), "CVV must contain only digits")
       .refine(
-        (val, { input }) => {
-          const isAmex = input?.cardNetwork === "American Express";
+        (val, context) => {
+          const isAmex = context.path?.[0] === "cardNetwork" && context.data?.cardNetwork === "American Express";
           return isAmex ? val.length === 4 : val.length === 3;
         },
-        ({ input }) => ({
-          message: `${input?.cardNetwork === "American Express" ? "4" : "3"} digits required for ${input?.cardNetwork}`,
+        ({ path, data }) => ({
+          message: `${data?.cardNetwork === "American Express" ? "4" : "3"} digits required for ${data?.cardNetwork}`,
         })
       ),
     expiryDate: z.string()
