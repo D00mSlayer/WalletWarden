@@ -29,12 +29,14 @@ export const cardNetworks = ["Visa", "Mastercard", "Rupay", "American Express"] 
 const currentYear = new Date().getFullYear() % 100; // Get last 2 digits of current year
 
 const creditCardFormSchema = z.object({
-  cardNetwork: z.enum(cardNetworks),
-  cardNumber: z.string(),
-  cvv: z.string(),
-  expiryDate: z.string(),
-  cardName: z.string(),
-  issuer: z.string(),
+  cardNetwork: z.enum(cardNetworks, {
+    required_error: "Please select a card network",
+  }),
+  cardNumber: z.string().min(1, "Card number is required"),
+  cvv: z.string().min(1, "CVV is required"),
+  expiryDate: z.string().min(1, "Expiry date is required"),
+  cardName: z.string().min(1, "Card name is required"),
+  issuer: z.string().min(1, "Issuer is required"),
 });
 
 export const insertCreditCardSchema = creditCardFormSchema.refine(
@@ -58,13 +60,8 @@ export const insertCreditCardSchema = creditCardFormSchema.refine(
 
     return true;
   },
-  (data) => {
-    const isAmex = data.cardNetwork === "American Express";
-    return {
-      message: `Validation failed: Please check card number (${isAmex ? "15" : "16"} digits), CVV (${
-        isAmex ? "4" : "3"
-      } digits), and expiry date (MM/YY format, ${currentYear} or later)`,
-    };
+  {
+    message: "Please check all card details are valid: card number length, CVV length, and expiry date format (MM/YY)",
   }
 );
 
