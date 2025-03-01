@@ -74,8 +74,8 @@ export const insertCreditCardSchema = createInsertSchema(creditCards)
           // Year must be current year or later
           return year >= currentYear;
         },
-        `Expiry date must be in format MM/YY where MM is 01-12 and YY is ${currentYear} or later`
-      )
+        `Expiry date must be in format MM/YY and ${currentYear} or later`
+      ),
   });
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
