@@ -40,25 +40,25 @@ export const insertCreditCardSchema = createInsertSchema(creditCards)
   .extend({
     cardNetwork: z.enum(cardNetworks),
     cardNumber: z.string()
-      .refine((val) => /^\d+$/.test(val), "Card number must contain only digits")
+      .refine(val => /^\d+$/.test(val), "Card number must contain only digits")
       .refine(
-        (val, ctx) => {
-          const isAmex = ctx.data?.cardNetwork === "American Express";
+        (val, { input }) => {
+          const isAmex = input?.cardNetwork === "American Express";
           return isAmex ? val.length === 15 : val.length === 16;
         },
-        (val, ctx) => ({
-          message: `${ctx.data?.cardNetwork === "American Express" ? "15" : "16"} digits required for ${ctx.data?.cardNetwork}`,
+        ({ input }) => ({
+          message: `${input?.cardNetwork === "American Express" ? "15" : "16"} digits required for ${input?.cardNetwork}`,
         })
       ),
     cvv: z.string()
-      .refine((val) => /^\d+$/.test(val), "CVV must contain only digits")
+      .refine(val => /^\d+$/.test(val), "CVV must contain only digits")
       .refine(
-        (val, ctx) => {
-          const isAmex = ctx.data?.cardNetwork === "American Express";
+        (val, { input }) => {
+          const isAmex = input?.cardNetwork === "American Express";
           return isAmex ? val.length === 4 : val.length === 3;
         },
-        (val, ctx) => ({
-          message: `${ctx.data?.cardNetwork === "American Express" ? "4" : "3"} digits required for ${ctx.data?.cardNetwork}`,
+        ({ input }) => ({
+          message: `${input?.cardNetwork === "American Express" ? "4" : "3"} digits required for ${input?.cardNetwork}`,
         })
       ),
     expiryDate: z.string()
@@ -69,7 +69,7 @@ export const insertCreditCardSchema = createInsertSchema(creditCards)
       .refine((val) => {
         const [month, year] = val.split("/").map(Number);
         return year >= currentYear;
-      }, "Expiry year must be current year or future")
+      }, `Expiry year must be ${currentYear} or later`)
   });
 
 export type InsertUser = z.infer<typeof insertUserSchema>;

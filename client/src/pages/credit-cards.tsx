@@ -33,6 +33,11 @@ function formatExpiryDate(value: string) {
 
   // Add slash after month if we have at least 2 digits
   if (cleaned.length >= 2) {
+    const month = parseInt(cleaned.slice(0, 2));
+    // Only allow months 01-12
+    if (month > 12) {
+      return "12/" + cleaned.slice(2, 4);
+    }
     return cleaned.slice(0, 2) + "/" + cleaned.slice(2, 4);
   }
 
@@ -200,6 +205,8 @@ function CardForm({ onSubmit, defaultValues }: any) {
         <Label htmlFor="cardNumber">Card Number</Label>
         <Input
           id="cardNumber"
+          inputMode="numeric"
+          pattern="[0-9]*"
           {...form.register("cardNumber")}
           maxLength={cardNetwork === "American Express" ? 15 : 16}
         />
@@ -213,6 +220,8 @@ function CardForm({ onSubmit, defaultValues }: any) {
           <Label htmlFor="expiryDate">Expiry Date</Label>
           <Input
             id="expiryDate"
+            inputMode="numeric"
+            pattern="[0-9]*"
             {...form.register("expiryDate")}
             placeholder="MM/YY"
             onChange={handleExpiryChange}
@@ -227,6 +236,8 @@ function CardForm({ onSubmit, defaultValues }: any) {
           <Input
             id="cvv"
             type="password"
+            inputMode="numeric"
+            pattern="[0-9]*"
             {...form.register("cvv")}
             maxLength={cardNetwork === "American Express" ? 4 : 3}
           />
