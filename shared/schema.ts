@@ -19,14 +19,28 @@ export const creditCards = pgTable("credit_cards", {
   issuer: text("issuer").notNull(),
 });
 
+export const cardNetworks = ["Visa", "Mastercard", "Rupay", "American Express"] as const;
+export const bankIssuers = [
+  "Axis Bank",
+  "ICICI Bank",
+  "RBL Bank",
+  "HDFC Bank",
+  "American Express",
+  "CSB Bank",
+  "SBI Bank",
+  "YES Bank",
+  "IDFC Bank",
+  "IndusInd Bank",
+  "Kotak Mahindra Bank",
+  "AU Small Finance Bank"
+] as const;
+
+const currentYear = new Date().getFullYear() % 100; // Get last 2 digits of current year
+
 export const insertUserSchema = createInsertSchema(users).pick({
   username: true,
   password: true,
 });
-
-export const cardNetworks = ["Visa", "Mastercard", "Rupay", "American Express"] as const;
-
-const currentYear = new Date().getFullYear() % 100; // Get last 2 digits of current year
 
 const creditCardFormSchema = z.object({
   cardNetwork: z.enum(cardNetworks, {
@@ -36,7 +50,9 @@ const creditCardFormSchema = z.object({
   cvv: z.string().min(1, "CVV is required"),
   expiryDate: z.string().min(1, "Expiry date is required"),
   cardName: z.string().min(1, "Card name is required"),
-  issuer: z.string().min(1, "Issuer is required"),
+  issuer: z.enum(bankIssuers, {
+    required_error: "Please select a bank",
+  }),
 });
 
 export const insertCreditCardSchema = creditCardFormSchema.refine(

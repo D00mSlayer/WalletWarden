@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/select";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { insertCreditCardSchema, cardNetworks, type CreditCard } from "@shared/schema";
+import { insertCreditCardSchema, cardNetworks, bankIssuers, type CreditCard } from "@shared/schema";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Loader2, PlusCircle, Pencil, Trash2 } from "lucide-react";
@@ -328,12 +328,21 @@ function CardForm({ onSubmit, defaultValues }: any) {
 
       <div>
         <Label htmlFor="issuer">Issuer</Label>
-        <Input
-          id="issuer"
-          {...form.register("issuer")}
-          onChange={handleIssuerChange}
-          ref={issuerRef}
-        />
+        <Select
+          value={form.watch("issuer")}
+          onValueChange={(value) => form.setValue("issuer", value, { shouldValidate: true })}
+        >
+          <SelectTrigger>
+            <SelectValue placeholder="Select bank" />
+          </SelectTrigger>
+          <SelectContent>
+            {bankIssuers.map((bank) => (
+              <SelectItem key={bank} value={bank}>
+                {bank}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         {form.formState.errors.issuer && (
           <p className="text-sm text-red-500">{form.formState.errors.issuer.message as string}</p>
         )}
