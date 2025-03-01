@@ -41,26 +41,28 @@ export const insertCreditCardSchema = createInsertSchema(creditCards)
     cardNetwork: z.enum(cardNetworks),
     cardNumber: z.string()
       .refine(val => /^\d+$/.test(val), "Card number must contain only digits")
-      .refine(
-        (val, ctx) => {
-          const isAmex = ctx.data?.cardNetwork === "American Express";
-          return isAmex ? val.length === 15 : val.length === 16;
-        },
-        (ctx) => ({
-          message: `${ctx.data?.cardNetwork === "American Express" ? "15" : "16"} digits required for ${ctx.data?.cardNetwork}`,
-        })
-      ),
+      .superRefine((val, ctx) => {
+        const isAmex = ctx.parent.cardNetwork === "American Express";
+        const requiredLength = isAmex ? 15 : 16;
+        if (val.length !== requiredLength) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: `${requiredLength} digits required for ${ctx.parent.cardNetwork}`,
+          });
+        }
+      }),
     cvv: z.string()
       .refine(val => /^\d+$/.test(val), "CVV must contain only digits")
-      .refine(
-        (val, ctx) => {
-          const isAmex = ctx.data?.cardNetwork === "American Express";
-          return isAmex ? val.length === 4 : val.length === 3;
-        },
-        (ctx) => ({
-          message: `${ctx.data?.cardNetwork === "American Express" ? "4" : "3"} digits required for ${ctx.data?.cardNetwork}`,
-        })
-      ),
+      .superRefine((val, ctx) => {
+        const isAmex = ctx.parent.cardNetwork === "American Express";
+        const requiredLength = isAmex ? 4 : 3;
+        if (val.length !== requiredLength) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: `${requiredLength} digits required for ${ctx.parent.cardNetwork}`,
+          });
+        }
+      }),
     expiryDate: z.string()
       .refine(
         val => {
