@@ -226,6 +226,12 @@ function CardForm({ onSubmit, defaultValues }: any) {
     }
   };
 
+  // Handle issuer change
+  const handleIssuerChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    form.setValue("issuer", value, { shouldValidate: true });
+  };
+
   return (
     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
       <div>
@@ -310,7 +316,12 @@ function CardForm({ onSubmit, defaultValues }: any) {
 
       <div>
         <Label htmlFor="issuer">Issuer</Label>
-        <Input id="issuer" {...form.register("issuer")} ref={issuerRef} />
+        <Input 
+          id="issuer" 
+          {...form.register("issuer")} 
+          onChange={handleIssuerChange}
+          ref={issuerRef} 
+        />
         {form.formState.errors.issuer && (
           <p className="text-sm text-red-500">{form.formState.errors.issuer.message as string}</p>
         )}
