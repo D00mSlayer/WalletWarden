@@ -99,6 +99,11 @@ export const expenseCategories = [
   "Packaging",
   "Transport",
   "Commission",
+  "Salary",
+  "Rent",
+  "Electricity",
+  "Internet",
+  "Water",
   "Others"
 ] as const;
 
