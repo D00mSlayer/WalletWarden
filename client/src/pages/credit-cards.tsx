@@ -23,7 +23,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Loader2, PlusCircle, Pencil, Trash2 } from "lucide-react";
 import { SiVisa, SiMastercard, SiAmericanexpress } from "react-icons/si";
-import { RiVisaLine } from "react-icons/ri"; // For Rupay icon since there's no direct Rupay icon
+import { BsCreditCard2Front } from "react-icons/bs"; // Better icon for Rupay
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "wouter";
 import { useState, useEffect, useRef } from "react";
@@ -56,103 +56,6 @@ function formatExpiryDate(value: string) {
   return cleaned;
 }
 
-export default function CreditCards() {
-  const { toast } = useToast();
-  const [isOpen, setIsOpen] = useState(false);
-  const { data: cards, isLoading } = useQuery<CreditCard[]>({
-    queryKey: ["/api/credit-cards"],
-  });
-
-  const addCardMutation = useMutation({
-    mutationFn: async (data: any) => {
-      const res = await apiRequest("POST", "/api/credit-cards", data);
-      return res.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/credit-cards"] });
-      toast({ title: "Credit card added successfully" });
-      setIsOpen(false);
-    },
-  });
-
-  const updateCardMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: number; data: any }) => {
-      const res = await apiRequest("PATCH", `/api/credit-cards/${id}`, data);
-      return res.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/credit-cards"] });
-      toast({ title: "Credit card updated successfully" });
-      setIsOpen(false);
-    },
-  });
-
-  const deleteCardMutation = useMutation({
-    mutationFn: async (id: number) => {
-      await apiRequest("DELETE", `/api/credit-cards/${id}`);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/credit-cards"] });
-      toast({ title: "Credit card deleted successfully" });
-    },
-  });
-
-  return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white border-b">
-        <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
-          <div className="flex items-center gap-4">
-            <Link href="/" className="text-gray-600 hover:text-gray-900">
-              ← Back
-            </Link>
-            <h1 className="text-2xl font-bold text-primary">Credit Cards</h1>
-          </div>
-
-          <Dialog open={isOpen} onOpenChange={setIsOpen}>
-            <DialogTrigger asChild>
-              <Button>
-                <PlusCircle className="h-4 w-4 mr-2" />
-                Add Card
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Add Credit Card</DialogTitle>
-              </DialogHeader>
-              <CardForm onSubmit={(data) => addCardMutation.mutate(data)} />
-            </DialogContent>
-          </Dialog>
-        </div>
-      </header>
-
-      <main className="max-w-7xl mx-auto px-4 py-8">
-        {isLoading ? (
-          <div className="flex justify-center">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          </div>
-        ) : cards?.length === 0 ? (
-          <Card>
-            <CardContent className="py-8 text-center text-gray-500">
-              No credit cards added yet
-            </CardContent>
-          </Card>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {cards?.map((card) => (
-              <CreditCardItem
-                key={card.id}
-                card={card}
-                onUpdate={(data) => updateCardMutation.mutate({ id: card.id, data })}
-                onDelete={() => deleteCardMutation.mutate(card.id)}
-              />
-            ))}
-          </div>
-        )}
-      </main>
-    </div>
-  );
-}
-
 function CardForm({ onSubmit, defaultValues }: any) {
   const form = useForm({
     resolver: zodResolver(insertCreditCardSchema),
@@ -172,7 +75,7 @@ function CardForm({ onSubmit, defaultValues }: any) {
 
   const expiryRef = useRef<HTMLInputElement>(null);
   const cvvRef = useRef<HTMLInputElement>(null);
-  const issuerRef = useRef<HTMLInputElement>(null);
+  const issuerRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     if (prevNetwork === cardNetwork) return;
@@ -228,11 +131,6 @@ function CardForm({ onSubmit, defaultValues }: any) {
 
   const capitalizeFirstWord = (str: string) => {
     return str.replace(/^\w/, c => c.toUpperCase());
-  };
-
-  const handleIssuerChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = capitalizeFirstWord(e.target.value);
-    form.setValue("issuer", value, { shouldValidate: true });
   };
 
   const handleCardNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -332,10 +230,10 @@ function CardForm({ onSubmit, defaultValues }: any) {
           value={form.watch("issuer")}
           onValueChange={(value) => form.setValue("issuer", value, { shouldValidate: true })}
         >
-          <SelectTrigger>
+          <SelectTrigger ref={issuerRef}>
             <SelectValue placeholder="Select bank" />
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent className="max-h-[200px]">
             {bankIssuers.map((bank) => (
               <SelectItem key={bank} value={bank}>
                 {bank}
@@ -364,17 +262,33 @@ function getCardIcon(network: string) {
     case "American Express":
       return <SiAmericanexpress className="h-8 w-8" />;
     case "Rupay":
-      return <RiVisaLine className="h-8 w-8" />;
+      return <BsCreditCard2Front className="h-8 w-8" />;
     default:
       return null;
   }
 }
 
+function getCardGradient(network: string) {
+  switch (network) {
+    case "Visa":
+      return "from-blue-800 to-blue-900";
+    case "Mastercard":
+      return "from-orange-600 to-red-800";
+    case "American Express":
+      return "from-emerald-700 to-emerald-900";
+    case "Rupay":
+      return "from-indigo-700 to-purple-900";
+    default:
+      return "from-gray-800 to-gray-900";
+  }
+}
+
 function CreditCardItem({ card, onUpdate, onDelete }: any) {
   const [isEditOpen, setIsEditOpen] = useState(false);
+  const gradient = getCardGradient(card.cardNetwork);
 
   return (
-    <Card className="relative overflow-hidden bg-gradient-to-br from-gray-800 to-gray-900 text-white">
+    <Card className={`relative overflow-hidden bg-gradient-to-br ${gradient} text-white`}>
       <CardHeader className="flex flex-row items-start justify-between pb-8">
         <div>
           <CardTitle className="text-lg font-normal mb-1">{card.cardName}</CardTitle>
@@ -437,5 +351,102 @@ function CreditCardItem({ card, onUpdate, onDelete }: any) {
         </div>
       </CardContent>
     </Card>
+  );
+}
+
+export default function CreditCards() {
+  const { toast } = useToast();
+  const [isOpen, setIsOpen] = useState(false);
+  const { data: cards, isLoading } = useQuery<CreditCard[]>({
+    queryKey: ["/api/credit-cards"],
+  });
+
+  const addCardMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const res = await apiRequest("POST", "/api/credit-cards", data);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/credit-cards"] });
+      toast({ title: "Credit card added successfully" });
+      setIsOpen(false);
+    },
+  });
+
+  const updateCardMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: number; data: any }) => {
+      const res = await apiRequest("PATCH", `/api/credit-cards/${id}`, data);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/credit-cards"] });
+      toast({ title: "Credit card updated successfully" });
+      setIsOpen(false);
+    },
+  });
+
+  const deleteCardMutation = useMutation({
+    mutationFn: async (id: number) => {
+      await apiRequest("DELETE", `/api/credit-cards/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/credit-cards"] });
+      toast({ title: "Credit card deleted successfully" });
+    },
+  });
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <header className="bg-white border-b">
+        <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
+          <div className="flex items-center gap-4">
+            <Link href="/" className="text-gray-600 hover:text-gray-900">
+              ← Back
+            </Link>
+            <h1 className="text-2xl font-bold text-primary">Credit Cards</h1>
+          </div>
+
+          <Dialog open={isOpen} onOpenChange={setIsOpen}>
+            <DialogTrigger asChild>
+              <Button>
+                <PlusCircle className="h-4 w-4 mr-2" />
+                Add Card
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Add Credit Card</DialogTitle>
+              </DialogHeader>
+              <CardForm onSubmit={(data) => addCardMutation.mutate(data)} />
+            </DialogContent>
+          </Dialog>
+        </div>
+      </header>
+
+      <main className="max-w-7xl mx-auto px-4 py-8">
+        {isLoading ? (
+          <div className="flex justify-center">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          </div>
+        ) : cards?.length === 0 ? (
+          <Card>
+            <CardContent className="py-8 text-center text-gray-500">
+              No credit cards added yet
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {cards?.map((card) => (
+              <CreditCardItem
+                key={card.id}
+                card={card}
+                onUpdate={(data) => updateCardMutation.mutate({ id: card.id, data })}
+                onDelete={() => deleteCardMutation.mutate(card.id)}
+              />
+            ))}
+          </div>
+        )}
+      </main>
+    </div>
   );
 }
