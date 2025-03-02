@@ -3,6 +3,8 @@ import { createServer, type Server } from "http";
 import { setupAuth } from "./auth";
 import { storage } from "./storage";
 import { insertCreditCardSchema, insertDebitCardSchema, insertBankAccountSchema, insertLoanSchema, insertRepaymentSchema, insertPasswordSchema, insertCustomerCreditSchema, insertExpenseSchema } from "@shared/schema";
+import {insertDailySalesSchema} from "@shared/schema"; // Assuming this schema exists
+
 
 export async function registerRoutes(app: Express): Promise<Server> {
   setupAuth(app);
@@ -298,6 +300,57 @@ export async function registerRoutes(app: Express): Promise<Server> {
     if (!expense || expense.userId !== req.user.id) return res.sendStatus(404);
 
     await storage.deleteExpense(expense.id);
+    res.sendStatus(204);
+  });
+
+  // Daily Sales Routes
+  app.get("/api/business/sales", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    console.log("[API] Getting daily sales records");
+    const sales = await storage.getDailySales(req.user.id);
+    res.json(sales);
+  });
+
+  app.post("/api/business/sales", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    console.log("[API] Creating daily sales record with data:", req.body);
+    const parsed = insertDailySalesSchema.safeParse(req.body);
+    if (!parsed.success) {
+      console.error("[API] Daily sales validation error:", parsed.error);
+      return res.status(400).json(parsed.error);
+    }
+
+    const sales = await storage.createDailySales(req.user.id, parsed.data);
+    console.log("[API] Created daily sales record:", sales);
+    res.status(201).json(sales);
+  });
+
+  app.patch("/api/business/sales/:id", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    console.log("[API] Updating daily sales record:", req.params.id, "with data:", req.body);
+    const parsed = insertDailySalesSchema.safeParse(req.body);
+    if (!parsed.success) {
+      console.error("[API] Daily sales update validation error:", parsed.error);
+      return res.status(400).json(parsed.error);
+    }
+
+    const sales = await storage.getDailySales(parseInt(req.params.id));
+    if (!sales || sales.userId !== req.user.id) return res.sendStatus(404);
+
+    const updated = await storage.updateDailySales(sales.id, parsed.data);
+    console.log("[API] Updated daily sales record:", updated);
+    res.json(updated);
+  });
+
+  app.delete("/api/business/sales/:id", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    console.log("[API] Deleting daily sales record:", req.params.id);
+
+    const sales = await storage.getDailySales(parseInt(req.params.id));
+    if (!sales || sales.userId !== req.user.id) return res.sendStatus(404);
+
+    await storage.deleteDailySales(sales.id);
+    console.log("[API] Deleted daily sales record:", req.params.id);
     res.sendStatus(204);
   });
 

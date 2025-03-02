@@ -55,6 +55,8 @@ function SalesForm({ onSubmit, defaultValues, onCancel }: any) {
 
   const handleSubmit = async (data: any) => {
     try {
+      console.log("[SalesForm] Starting form submission with data:", data);
+
       const formattedData = {
         date: data.date,
         cashAmount: Number(data.cashAmount || 0),
@@ -63,16 +65,10 @@ function SalesForm({ onSubmit, defaultValues, onCancel }: any) {
         notes: data.notes || "",
       };
 
+      console.log("[SalesForm] Formatted data:", formattedData);
       await onSubmit(formattedData);
-      form.reset({
-        date: format(new Date(), "yyyy-MM-dd"),
-        cashAmount: "",
-        cardAmount: "",
-        upiAmount: "",
-        notes: "",
-      });
     } catch (error) {
-      console.error("Form submission error:", error);
+      console.error("[SalesForm] Form submission error:", error);
       toast({
         title: "Error",
         description: "Failed to submit sales data",
@@ -92,6 +88,9 @@ function SalesForm({ onSubmit, defaultValues, onCancel }: any) {
             className="mt-1.5"
             {...form.register("date")}
           />
+          {form.formState.errors.date && (
+            <p className="text-sm text-red-500 mt-1">{form.formState.errors.date.message as string}</p>
+          )}
         </div>
 
         <div>
@@ -107,6 +106,9 @@ function SalesForm({ onSubmit, defaultValues, onCancel }: any) {
               {...form.register("cashAmount")}
             />
           </div>
+          {form.formState.errors.cashAmount && (
+            <p className="text-sm text-red-500 mt-1">{form.formState.errors.cashAmount.message as string}</p>
+          )}
         </div>
 
         <div>
@@ -122,6 +124,9 @@ function SalesForm({ onSubmit, defaultValues, onCancel }: any) {
               {...form.register("cardAmount")}
             />
           </div>
+          {form.formState.errors.cardAmount && (
+            <p className="text-sm text-red-500 mt-1">{form.formState.errors.cardAmount.message as string}</p>
+          )}
         </div>
 
         <div>
@@ -137,6 +142,9 @@ function SalesForm({ onSubmit, defaultValues, onCancel }: any) {
               {...form.register("upiAmount")}
             />
           </div>
+          {form.formState.errors.upiAmount && (
+            <p className="text-sm text-red-500 mt-1">{form.formState.errors.upiAmount.message as string}</p>
+          )}
         </div>
 
         <div className="pt-2 border-t">
@@ -265,23 +273,33 @@ export default function Sales() {
   const addSalesMutation = useMutation({
     mutationFn: async (data: any) => {
       try {
+        console.log("[Mutation] Starting sales creation with data:", data);
         const res = await apiRequest("POST", "/api/business/sales", data);
+        console.log("[Mutation] API response status:", res.status);
+
         if (!res.ok) {
           const errorData = await res.json();
+          console.error("[Mutation] API error response:", errorData);
           throw new Error(errorData.message || "Failed to add sales record");
         }
-        return await res.json();
+
+        const responseData = await res.json();
+        console.log("[Mutation] API success response:", responseData);
+        return responseData;
       } catch (error: any) {
+        console.error("[Mutation] Error occurred:", error);
         throw new Error(error.message || "Failed to add sales record");
       }
     },
     onSuccess: () => {
+      console.log("[Mutation] Successfully added sales record");
       queryClient.invalidateQueries({ queryKey: ["/api/business/sales"] });
       toast({ title: "Sales record added successfully" });
       setIsOpen(false);
       setSelectedSales(null);
     },
     onError: (error: Error) => {
+      console.error("[Mutation] Error in mutation:", error);
       toast({
         title: "Failed to add sales record",
         description: error.message,
@@ -293,6 +311,10 @@ export default function Sales() {
   const updateSalesMutation = useMutation({
     mutationFn: async ({ id, data }: { id: number; data: any }) => {
       const res = await apiRequest("PATCH", `/api/business/sales/${id}`, data);
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.message || "Failed to update sales record");
+      }
       return res.json();
     },
     onSuccess: () => {
@@ -305,7 +327,11 @@ export default function Sales() {
 
   const deleteSalesMutation = useMutation({
     mutationFn: async (id: number) => {
-      await apiRequest("DELETE", `/api/business/sales/${id}`);
+      const res = await apiRequest("DELETE", `/api/business/sales/${id}`);
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.message || "Failed to delete sales record");
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/business/sales"] });
@@ -319,10 +345,15 @@ export default function Sales() {
   };
 
   const handleSubmit = async (data: any) => {
-    if (selectedSales) {
-      await updateSalesMutation.mutate({ id: selectedSales.id, data });
-    } else {
-      await addSalesMutation.mutate(data);
+    try {
+      console.log("[Sales] Handling submit with data:", data);
+      if (selectedSales) {
+        await updateSalesMutation.mutate({ id: selectedSales.id, data });
+      } else {
+        await addSalesMutation.mutate(data);
+      }
+    } catch (error) {
+      console.error("[Sales] Submit error:", error);
     }
   };
 
