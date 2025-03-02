@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, timestamp, decimal } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -84,21 +84,17 @@ const cardFormSchema = z.object({
   tags: z.array(z.string()).default([]),
 });
 
-// Same validation for both credit and debit cards
 const cardValidationSchema = cardFormSchema.refine(
   (data) => {
-    // Card number validation
     if (!/^\d+$/.test(data.cardNumber)) return false;
     const isAmex = data.cardNetwork === "American Express";
     const requiredLength = isAmex ? 15 : 16;
     if (data.cardNumber.length !== requiredLength) return false;
 
-    // CVV validation
     if (!/^\d+$/.test(data.cvv)) return false;
     const requiredCvvLength = isAmex ? 4 : 3;
     if (data.cvv.length !== requiredCvvLength) return false;
 
-    // Expiry date validation
     if (!/^\d{2}\/\d{2}$/.test(data.expiryDate)) return false;
     const [month, year] = data.expiryDate.split("/").map(Number);
     if (month < 1 || month > 12) return false;
@@ -111,7 +107,6 @@ const cardValidationSchema = cardFormSchema.refine(
   }
 );
 
-// Bank account schema with validation
 export const insertBankAccountSchema = z.object({
   bankName: z.enum(bankIssuers, {
     required_error: "Please select a bank",
@@ -147,3 +142,44 @@ export type BankAccount = typeof bankAccounts.$inferSelect;
 export type InsertCreditCard = z.infer<typeof insertCreditCardSchema>;
 export type InsertDebitCard = z.infer<typeof insertDebitCardSchema>;
 export type InsertBankAccount = z.infer<typeof insertBankAccountSchema>;
+
+export const loans = pgTable("loans", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  personName: text("person_name").notNull(),
+  amount: decimal("amount").notNull(),
+  type: text("type").notNull(), // "given" or "received"
+  description: text("description"),
+  status: text("status").notNull().default("active"), // "active" or "completed"
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  completedAt: timestamp("completed_at"),
+  tags: text("tags").array().notNull().default([]),
+});
+
+export const repayments = pgTable("repayments", {
+  id: serial("id").primaryKey(),
+  loanId: integer("loan_id").notNull(),
+  amount: decimal("amount").notNull(),
+  date: timestamp("date").notNull().defaultNow(),
+  note: text("note"),
+});
+
+export const insertLoanSchema = z.object({
+  personName: z.string().min(1, "Person name is required"),
+  amount: z.number().positive("Amount must be positive"),
+  type: z.enum(["given", "received"], {
+    required_error: "Please select loan type",
+  }),
+  description: z.string().optional(),
+  tags: z.array(z.string()).default([]),
+});
+
+export const insertRepaymentSchema = z.object({
+  amount: z.number().positive("Amount must be positive"),
+  note: z.string().optional(),
+});
+
+export type Loan = typeof loans.$inferSelect;
+export type InsertLoan = z.infer<typeof insertLoanSchema>;
+export type Repayment = typeof repayments.$inferSelect;
+export type InsertRepayment = z.infer<typeof insertRepaymentSchema>;

@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { setupAuth } from "./auth";
 import { storage } from "./storage";
-import { insertCreditCardSchema, insertDebitCardSchema, insertBankAccountSchema } from "@shared/schema";
+import { insertCreditCardSchema, insertDebitCardSchema, insertBankAccountSchema, insertLoanSchema, insertRepaymentSchema } from "@shared/schema";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   setupAuth(app);
@@ -117,6 +117,87 @@ export async function registerRoutes(app: Express): Promise<Server> {
     if (!account || account.userId !== req.user.id) return res.sendStatus(404);
 
     await storage.deleteBankAccount(account.id);
+    res.sendStatus(204);
+  });
+
+  // Loan Routes
+  app.get("/api/loans", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    const loans = await storage.getLoans(req.user.id);
+    res.json(loans);
+  });
+
+  app.post("/api/loans", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    const parsed = insertLoanSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json(parsed.error);
+
+    const loan = await storage.createLoan(req.user.id, parsed.data);
+    res.status(201).json(loan);
+  });
+
+  app.patch("/api/loans/:id", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    const parsed = insertLoanSchema.partial().safeParse(req.body);
+    if (!parsed.success) return res.status(400).json(parsed.error);
+
+    const loan = await storage.getLoan(parseInt(req.params.id));
+    if (!loan || loan.userId !== req.user.id) return res.sendStatus(404);
+
+    const updated = await storage.updateLoan(loan.id, parsed.data);
+    res.json(updated);
+  });
+
+  app.post("/api/loans/:id/complete", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+
+    const loan = await storage.getLoan(parseInt(req.params.id));
+    if (!loan || loan.userId !== req.user.id) return res.sendStatus(404);
+
+    const updated = await storage.completeLoan(loan.id);
+    res.json(updated);
+  });
+
+  app.delete("/api/loans/:id", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+
+    const loan = await storage.getLoan(parseInt(req.params.id));
+    if (!loan || loan.userId !== req.user.id) return res.sendStatus(404);
+
+    await storage.deleteLoan(loan.id);
+    res.sendStatus(204);
+  });
+
+  // Repayment Routes
+  app.get("/api/loans/:id/repayments", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+
+    const loan = await storage.getLoan(parseInt(req.params.id));
+    if (!loan || loan.userId !== req.user.id) return res.sendStatus(404);
+
+    const repayments = await storage.getRepayments(loan.id);
+    res.json(repayments);
+  });
+
+  app.post("/api/loans/:id/repayments", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    const parsed = insertRepaymentSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json(parsed.error);
+
+    const loan = await storage.getLoan(parseInt(req.params.id));
+    if (!loan || loan.userId !== req.user.id) return res.sendStatus(404);
+
+    const repayment = await storage.createRepayment(loan.id, parsed.data);
+    res.status(201).json(repayment);
+  });
+
+  app.delete("/api/loans/:id/repayments/:repaymentId", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+
+    const loan = await storage.getLoan(parseInt(req.params.id));
+    if (!loan || loan.userId !== req.user.id) return res.sendStatus(404);
+
+    await storage.deleteRepayment(parseInt(req.params.repaymentId));
     res.sendStatus(204);
   });
 

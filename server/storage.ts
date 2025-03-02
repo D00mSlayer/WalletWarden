@@ -1,4 +1,4 @@
-import { User, InsertUser, CreditCard, InsertCreditCard, DebitCard, InsertDebitCard, BankAccount, InsertBankAccount } from "@shared/schema";
+import { User, InsertUser, CreditCard, InsertCreditCard, DebitCard, InsertDebitCard, BankAccount, InsertBankAccount, Loan, InsertLoan, Repayment, InsertRepayment } from "@shared/schema";
 import session from "express-session";
 import createMemoryStore from "memorystore";
 
@@ -27,6 +27,17 @@ export interface IStorage {
   updateBankAccount(id: number, account: InsertBankAccount): Promise<BankAccount>;
   deleteBankAccount(id: number): Promise<void>;
 
+  getLoans(userId: number): Promise<Loan[]>;
+  getLoan(id: number): Promise<Loan | undefined>;
+  createLoan(userId: number, loan: InsertLoan): Promise<Loan>;
+  updateLoan(id: number, loan: Partial<InsertLoan>): Promise<Loan>;
+  completeLoan(id: number): Promise<Loan>;
+  deleteLoan(id: number): Promise<void>;
+
+  getRepayments(loanId: number): Promise<Repayment[]>;
+  createRepayment(loanId: number, repayment: InsertRepayment): Promise<Repayment>;
+  deleteRepayment(id: number): Promise<void>;
+
   sessionStore: session.Store;
 }
 
@@ -35,9 +46,13 @@ export class MemStorage implements IStorage {
   private creditCards: Map<number, CreditCard>;
   private debitCards: Map<number, DebitCard>;
   private bankAccounts: Map<number, BankAccount>;
+  private loans: Map<number, Loan>;
+  private repayments: Map<number, Repayment>;
   private currentUserId: number;
   private currentCardId: number;
   private currentAccountId: number;
+  private currentLoanId: number;
+  private currentRepaymentId: number;
   sessionStore: session.Store;
 
   constructor() {
@@ -45,9 +60,13 @@ export class MemStorage implements IStorage {
     this.creditCards = new Map();
     this.debitCards = new Map();
     this.bankAccounts = new Map();
+    this.loans = new Map();
+    this.repayments = new Map();
     this.currentUserId = 1;
     this.currentCardId = 1;
     this.currentAccountId = 1;
+    this.currentLoanId = 1;
+    this.currentRepaymentId = 1;
     this.sessionStore = new MemoryStore({
       checkPeriod: 86400000,
     });
@@ -158,6 +177,84 @@ export class MemStorage implements IStorage {
 
   async deleteBankAccount(id: number): Promise<void> {
     this.bankAccounts.delete(id);
+  }
+
+  async getLoans(userId: number): Promise<Loan[]> {
+    return Array.from(this.loans.values()).filter(
+      (loan) => loan.userId === userId,
+    );
+  }
+
+  async getLoan(id: number): Promise<Loan | undefined> {
+    return this.loans.get(id);
+  }
+
+  async createLoan(userId: number, loan: InsertLoan): Promise<Loan> {
+    const id = this.currentLoanId++;
+    const newLoan: Loan = {
+      ...loan,
+      id,
+      userId,
+      status: "active",
+      createdAt: new Date(),
+      completedAt: null,
+    };
+    this.loans.set(id, newLoan);
+    return newLoan;
+  }
+
+  async updateLoan(id: number, loan: Partial<InsertLoan>): Promise<Loan> {
+    const existing = await this.getLoan(id);
+    if (!existing) throw new Error("Loan not found");
+
+    const updated: Loan = { ...existing, ...loan };
+    this.loans.set(id, updated);
+    return updated;
+  }
+
+  async completeLoan(id: number): Promise<Loan> {
+    const existing = await this.getLoan(id);
+    if (!existing) throw new Error("Loan not found");
+
+    const updated: Loan = {
+      ...existing,
+      status: "completed",
+      completedAt: new Date(),
+    };
+    this.loans.set(id, updated);
+    return updated;
+  }
+
+  async deleteLoan(id: number): Promise<void> {
+    this.loans.delete(id);
+    // Also delete associated repayments
+    for (const [repaymentId, repayment] of this.repayments) {
+      if (repayment.loanId === id) {
+        this.repayments.delete(repaymentId);
+      }
+    }
+  }
+
+  async getRepayments(loanId: number): Promise<Repayment[]> {
+    return Array.from(this.repayments.values()).filter(
+      (repayment) => repayment.loanId === loanId,
+    );
+  }
+
+  async createRepayment(loanId: number, repayment: InsertRepayment): Promise<Repayment> {
+    const id = this.currentRepaymentId++;
+    const newRepayment: Repayment = {
+      ...repayment,
+      id,
+      loanId,
+      date: new Date(),
+    };
+    this.repayments.set(id, newRepayment);
+    return newRepayment;
+  }
+
+  async deleteRepayment(id: number): Promise<void> {
+    this.repayments.delete(id);
   }
 }
 

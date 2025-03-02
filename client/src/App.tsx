@@ -10,6 +10,7 @@ import Dashboard from "@/pages/dashboard";
 import CreditCards from "@/pages/credit-cards";
 import DebitCards from "@/pages/debit-cards";
 import BankAccounts from "@/pages/bank-accounts";
+import Loans from "@/pages/loans";
 
 function Router() {
   return (
@@ -19,6 +20,7 @@ function Router() {
       <ProtectedRoute path="/credit-cards" component={CreditCards} />
       <ProtectedRoute path="/debit-cards" component={DebitCards} />
       <ProtectedRoute path="/bank-accounts" component={BankAccounts} />
+      <ProtectedRoute path="/loans" component={Loans} />
       <Route component={NotFound} />
     </Switch>
   );
