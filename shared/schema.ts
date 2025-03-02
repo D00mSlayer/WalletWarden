@@ -88,7 +88,6 @@ export const customerCredits = pgTable("customer_credits", {
   customerName: text("customer_name").notNull(),
   amount: decimal("amount").notNull(),
   date: timestamp("date").notNull().defaultNow(),
-  purpose: text("purpose"),
   status: text("status").notNull().default("pending"), // pending or paid
   paidDate: timestamp("paid_date"),
   notes: text("notes"),
@@ -221,7 +220,6 @@ export const insertPasswordSchema = z.object({
 export const insertCustomerCreditSchema = z.object({
   customerName: z.string().min(1, "Customer name is required"),
   amount: z.number().positive("Amount must be positive"),
-  purpose: z.string().optional(),
   notes: z.string().optional(),
 });
 

@@ -39,7 +39,6 @@ function CreditForm({ onSubmit, defaultValues }: any) {
     defaultValues: {
       customerName: defaultValues?.customerName || "",
       amount: defaultValues?.amount || "",
-      purpose: defaultValues?.purpose || "",
       notes: defaultValues?.notes || "",
     },
     mode: "onChange",
@@ -85,14 +84,6 @@ function CreditForm({ onSubmit, defaultValues }: any) {
       </div>
 
       <div>
-        <Label htmlFor="purpose">Purpose</Label>
-        <Input
-          id="purpose"
-          {...form.register("purpose")}
-        />
-      </div>
-
-      <div>
         <Label htmlFor="notes">Notes (Optional)</Label>
         <Textarea
           id="notes"
@@ -113,7 +104,7 @@ function CreditCard({ credit, onMarkPaid, onDelete }: any) {
   const formattedPaidDate = credit.paidDate ? format(new Date(credit.paidDate), "PPP") : null;
 
   return (
-    <Card>
+    <Card className={isPending ? "" : "bg-muted"}>
       <CardHeader className="flex flex-row items-start justify-between pb-2">
         <div>
           <CardTitle className="text-lg font-normal">{credit.customerName}</CardTitle>
@@ -135,13 +126,6 @@ function CreditCard({ credit, onMarkPaid, onDelete }: any) {
               {credit.amount}
             </div>
           </div>
-
-          {credit.purpose && (
-            <div>
-              <div className="text-sm font-medium mb-1">Purpose</div>
-              <div className="text-sm">{credit.purpose}</div>
-            </div>
-          )}
 
           {credit.notes && (
             <div>
@@ -247,8 +231,24 @@ export default function CustomerCredits() {
     },
   });
 
-  const pendingCredits = credits?.filter((credit) => credit.status === "pending") || [];
-  const paidCredits = credits?.filter((credit) => credit.status === "paid") || [];
+  // Group credits by customer name
+  const groupedPendingCredits = credits
+    ?.filter((credit) => credit.status === "pending")
+    .reduce((groups, credit) => {
+      const group = groups[credit.customerName] || [];
+      group.push(credit);
+      groups[credit.customerName] = group;
+      return groups;
+    }, {} as Record<string, CustomerCredit[]>) || {};
+
+  const groupedPaidCredits = credits
+    ?.filter((credit) => credit.status === "paid")
+    .reduce((groups, credit) => {
+      const group = groups[credit.customerName] || [];
+      group.push(credit);
+      groups[credit.customerName] = group;
+      return groups;
+    }, {} as Record<string, CustomerCredit[]>) || {};
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -287,36 +287,50 @@ export default function CustomerCredits() {
           <div className="space-y-8">
             <div>
               <h2 className="text-xl font-semibold mb-4">Pending Credits</h2>
-              {pendingCredits.length === 0 ? (
+              {Object.keys(groupedPendingCredits).length === 0 ? (
                 <Card>
                   <CardContent className="py-8 text-center text-gray-500">
                     No pending credits
                   </CardContent>
                 </Card>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {pendingCredits.map((credit) => (
-                    <CreditCard
-                      key={credit.id}
-                      credit={credit}
-                      onMarkPaid={(id: number) => markPaidMutation.mutate(id)}
-                      onDelete={(id: number) => deleteCreditMutation.mutate(id)}
-                    />
+                <div className="space-y-8">
+                  {Object.entries(groupedPendingCredits).map(([customerName, customerCredits]) => (
+                    <div key={customerName}>
+                      <h3 className="text-lg font-medium mb-4">{customerName}</h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {customerCredits.map((credit) => (
+                          <CreditCard
+                            key={credit.id}
+                            credit={credit}
+                            onMarkPaid={(id: number) => markPaidMutation.mutate(id)}
+                            onDelete={(id: number) => deleteCreditMutation.mutate(id)}
+                          />
+                        ))}
+                      </div>
+                    </div>
                   ))}
                 </div>
               )}
             </div>
 
-            {paidCredits.length > 0 && (
+            {Object.keys(groupedPaidCredits).length > 0 && (
               <div>
                 <h2 className="text-xl font-semibold mb-4">Payment History</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {paidCredits.map((credit) => (
-                    <CreditCard
-                      key={credit.id}
-                      credit={credit}
-                      onDelete={(id: number) => deleteCreditMutation.mutate(id)}
-                    />
+                <div className="space-y-8">
+                  {Object.entries(groupedPaidCredits).map(([customerName, customerCredits]) => (
+                    <div key={customerName}>
+                      <h3 className="text-lg font-medium mb-4">{customerName}</h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {customerCredits.map((credit) => (
+                          <CreditCard
+                            key={credit.id}
+                            credit={credit}
+                            onDelete={(id: number) => deleteCreditMutation.mutate(id)}
+                          />
+                        ))}
+                      </div>
+                    </div>
                   ))}
                 </div>
               </div>
