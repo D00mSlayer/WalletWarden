@@ -56,13 +56,21 @@ function SalesForm({ onSubmit, defaultValues, onCancel }: any) {
   const handleSubmit = async (data: any) => {
     try {
       const formattedData = {
-        ...data,
+        date: data.date,
         cashAmount: Number(data.cashAmount || 0),
         cardAmount: Number(data.cardAmount || 0),
         upiAmount: Number(data.upiAmount || 0),
+        notes: data.notes || "",
       };
 
       await onSubmit(formattedData);
+      form.reset({
+        date: format(new Date(), "yyyy-MM-dd"),
+        cashAmount: "",
+        cardAmount: "",
+        upiAmount: "",
+        notes: "",
+      });
     } catch (error) {
       console.error("Form submission error:", error);
       toast({
@@ -74,7 +82,7 @@ function SalesForm({ onSubmit, defaultValues, onCancel }: any) {
   };
 
   return (
-    <form onSubmit={form.handleSubmit(handleSubmit)}>
+    <form onSubmit={form.handleSubmit(handleSubmit)} autoComplete="off">
       <div className="space-y-4 max-h-[calc(80vh-8rem)] overflow-y-auto px-4 pb-4">
         <div>
           <Label htmlFor="date">Date</Label>

@@ -18,13 +18,6 @@ const sections = [
     color: "text-orange-500",
   },
   {
-    title: "Fixed Expenses",
-    description: "Track salaries, rent, and utilities",
-    href: "/business/fixed-expenses",
-    icon: Wallet2,
-    color: "text-purple-500",
-  },
-  {
     title: "Daily Sales",
     description: "Record and monitor daily sales",
     href: "/business/sales",
