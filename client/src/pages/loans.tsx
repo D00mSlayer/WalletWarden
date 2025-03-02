@@ -22,7 +22,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { insertLoanSchema, insertRepaymentSchema, type Loan, type Repayment } from "@shared/schema";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Loader2, PlusCircle, IndianRupee, CheckCircle2, History, X } from "lucide-react";
+import { Loader2, IndianRupee, CheckCircle2, History, X, Pencil } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "wouter";
 import { useState } from "react";
@@ -37,7 +37,14 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Badge } from "@/components/ui/badge";
+
+function formatDate(date: string | Date) {
+  return new Date(date).toLocaleDateString('en-IN', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric'
+  });
+}
 
 function LoanForm({ onSubmit, defaultValues }: any) {
   const form = useForm({
@@ -47,32 +54,9 @@ function LoanForm({ onSubmit, defaultValues }: any) {
       amount: defaultValues?.amount || "",
       type: defaultValues?.type || "",
       description: defaultValues?.description || "",
-      tags: Array.isArray(defaultValues?.tags) ? defaultValues.tags : [],
     },
     mode: "onChange",
   });
-
-  const [newTag, setNewTag] = useState("");
-  const tags = form.watch("tags") || [];
-
-  const handleAddTag = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter" && newTag.trim()) {
-      e.preventDefault();
-      const trimmedTag = newTag.trim();
-      if (!tags.includes(trimmedTag)) {
-        form.setValue("tags", [...tags, trimmedTag], { shouldValidate: true });
-        setNewTag("");
-      }
-    }
-  };
-
-  const handleRemoveTag = (tagToRemove: string) => {
-    form.setValue(
-      "tags",
-      tags.filter((tag: string) => tag !== tagToRemove),
-      { shouldValidate: true }
-    );
-  };
 
   return (
     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
@@ -134,31 +118,6 @@ function LoanForm({ onSubmit, defaultValues }: any) {
         />
       </div>
 
-      <div>
-        <Label htmlFor="tags">Tags</Label>
-        <div className="flex flex-wrap gap-2 mb-2">
-          {Array.isArray(tags) && tags.map((tag: string) => (
-            <Badge key={tag} variant="secondary" className="text-sm">
-              {tag}
-              <button
-                type="button"
-                onClick={() => handleRemoveTag(tag)}
-                className="ml-1 hover:text-destructive focus:outline-none"
-              >
-                <X className="h-3 w-3" />
-              </button>
-            </Badge>
-          ))}
-        </div>
-        <Input
-          id="tags"
-          value={newTag}
-          onChange={(e) => setNewTag(e.target.value)}
-          onKeyDown={handleAddTag}
-          placeholder="Type a tag and press Enter"
-        />
-      </div>
-
       <Button type="submit" className="w-full">
         {defaultValues ? "Update Loan" : "Add Loan"}
       </Button>
@@ -172,6 +131,7 @@ function RepaymentForm({ onSubmit }: { onSubmit: (data: any) => void }) {
     defaultValues: {
       amount: "",
       note: "",
+      date: new Date().toISOString().split('T')[0],
     },
     mode: "onChange",
   });
@@ -193,6 +153,15 @@ function RepaymentForm({ onSubmit }: { onSubmit: (data: any) => void }) {
         {form.formState.errors.amount && (
           <p className="text-sm text-red-500">{form.formState.errors.amount.message as string}</p>
         )}
+      </div>
+
+      <div>
+        <Label htmlFor="date">Date</Label>
+        <Input
+          id="date"
+          type="date"
+          {...form.register("date")}
+        />
       </div>
 
       <div>
@@ -238,7 +207,7 @@ function LoanCard({ loan, onUpdate, onComplete, onDelete }: any) {
   };
 
   return (
-    <Card className="relative overflow-hidden">
+    <Card className={`relative overflow-hidden ${loan.status === "completed" ? "bg-green-50" : ""}`}>
       <CardHeader className="flex flex-row items-start justify-between pb-4">
         <div>
           <CardTitle className="text-lg font-normal mb-1">
@@ -263,7 +232,7 @@ function LoanCard({ loan, onUpdate, onComplete, onDelete }: any) {
             <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
               <DialogTrigger asChild>
                 <Button variant="ghost" size="icon">
-                  <PlusCircle className="h-4 w-4" />
+                  <Pencil className="h-4 w-4" />
                 </Button>
               </DialogTrigger>
               <DialogContent>
@@ -338,9 +307,9 @@ function LoanCard({ loan, onUpdate, onComplete, onDelete }: any) {
       <CardContent>
         <div className="space-y-4">
           <div className="flex justify-between text-sm">
-            <div>Created: {new Date(loan.createdAt).toLocaleDateString()}</div>
+            <div>Created: {formatDate(loan.createdAt)}</div>
             {loan.completedAt && (
-              <div>Completed: {new Date(loan.completedAt).toLocaleDateString()}</div>
+              <div>Completed: {formatDate(loan.completedAt)}</div>
             )}
           </div>
 
@@ -365,7 +334,7 @@ function LoanCard({ loan, onUpdate, onComplete, onDelete }: any) {
                         <div className="text-muted-foreground">({repayment.note})</div>
                       )}
                     </div>
-                    <div>{new Date(repayment.date).toLocaleDateString()}</div>
+                    <div>{formatDate(repayment.date)}</div>
                   </div>
                 ))}
                 <div className="pt-2 border-t">

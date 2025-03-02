@@ -153,7 +153,6 @@ export const loans = pgTable("loans", {
   status: text("status").notNull().default("active"), // "active" or "completed"
   createdAt: timestamp("created_at").notNull().defaultNow(),
   completedAt: timestamp("completed_at"),
-  tags: text("tags").array().notNull().default([]),
 });
 
 export const repayments = pgTable("repayments", {
@@ -171,12 +170,12 @@ export const insertLoanSchema = z.object({
     required_error: "Please select loan type",
   }),
   description: z.string().optional(),
-  tags: z.array(z.string()).default([]),
 });
 
 export const insertRepaymentSchema = z.object({
   amount: z.number().positive("Amount must be positive"),
   note: z.string().optional(),
+  date: z.string().optional(), // Allow custom date input
 });
 
 export type Loan = typeof loans.$inferSelect;
