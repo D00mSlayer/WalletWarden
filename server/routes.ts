@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { setupAuth } from "./auth";
 import { storage } from "./storage";
-import { insertCreditCardSchema, insertDebitCardSchema, insertBankAccountSchema, insertLoanSchema, insertRepaymentSchema } from "@shared/schema";
+import { insertCreditCardSchema, insertDebitCardSchema, insertBankAccountSchema, insertLoanSchema, insertRepaymentSchema, insertPasswordSchema } from "@shared/schema";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   setupAuth(app);
@@ -198,6 +198,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
     if (!loan || loan.userId !== req.user.id) return res.sendStatus(404);
 
     await storage.deleteRepayment(parseInt(req.params.repaymentId));
+    res.sendStatus(204);
+  });
+
+  // Password Routes
+  app.get("/api/passwords", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    const passwords = await storage.getPasswords(req.user.id);
+    res.json(passwords);
+  });
+
+  app.post("/api/passwords", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    const parsed = insertPasswordSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json(parsed.error);
+
+    const password = await storage.createPassword(req.user.id, parsed.data);
+    res.status(201).json(password);
+  });
+
+  app.patch("/api/passwords/:id", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    const parsed = insertPasswordSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json(parsed.error);
+
+    const password = await storage.getPassword(parseInt(req.params.id));
+    if (!password || password.userId !== req.user.id) return res.sendStatus(404);
+
+    const updated = await storage.updatePassword(password.id, parsed.data);
+    res.json(updated);
+  });
+
+  app.delete("/api/passwords/:id", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+
+    const password = await storage.getPassword(parseInt(req.params.id));
+    if (!password || password.userId !== req.user.id) return res.sendStatus(404);
+
+    await storage.deletePassword(password.id);
     res.sendStatus(204);
   });
 

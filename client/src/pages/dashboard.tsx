@@ -1,7 +1,7 @@
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/hooks/use-auth";
 import { Link } from "wouter";
-import { CreditCard, Wallet, Building2, FileText, CircleDollarSign } from "lucide-react";
+import { CreditCard, Wallet, Building2, FileText, CircleDollarSign, KeyRound } from "lucide-react";
 
 const tiles = [
   {
@@ -33,6 +33,12 @@ const tiles = [
     icon: FileText,
     href: "/documents",
     color: "text-teal-500",
+  },
+  {
+    title: "Passwords",
+    icon: KeyRound,
+    href: "/passwords",
+    color: "text-gray-500",
   },
 ];
 

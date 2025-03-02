@@ -1,4 +1,4 @@
-import { User, InsertUser, CreditCard, InsertCreditCard, DebitCard, InsertDebitCard, BankAccount, InsertBankAccount, Loan, InsertLoan, Repayment, InsertRepayment } from "@shared/schema";
+import { User, InsertUser, CreditCard, InsertCreditCard, DebitCard, InsertDebitCard, BankAccount, InsertBankAccount, Loan, InsertLoan, Repayment, InsertRepayment, Password, InsertPassword } from "@shared/schema";
 import session from "express-session";
 import createMemoryStore from "memorystore";
 
@@ -38,6 +38,12 @@ export interface IStorage {
   createRepayment(loanId: number, repayment: InsertRepayment): Promise<Repayment>;
   deleteRepayment(id: number): Promise<void>;
 
+  getPasswords(userId: number): Promise<Password[]>;
+  getPassword(id: number): Promise<Password | undefined>;
+  createPassword(userId: number, password: InsertPassword): Promise<Password>;
+  updatePassword(id: number, password: InsertPassword): Promise<Password>;
+  deletePassword(id: number): Promise<void>;
+
   sessionStore: session.Store;
 }
 
@@ -48,11 +54,13 @@ export class MemStorage implements IStorage {
   private bankAccounts: Map<number, BankAccount>;
   private loans: Map<number, Loan>;
   private repayments: Map<number, Repayment>;
+  private passwords: Map<number, Password>;
   private currentUserId: number;
   private currentCardId: number;
   private currentAccountId: number;
   private currentLoanId: number;
   private currentRepaymentId: number;
+  private currentPasswordId: number;
   sessionStore: session.Store;
 
   constructor() {
@@ -62,11 +70,13 @@ export class MemStorage implements IStorage {
     this.bankAccounts = new Map();
     this.loans = new Map();
     this.repayments = new Map();
+    this.passwords = new Map();
     this.currentUserId = 1;
     this.currentCardId = 1;
     this.currentAccountId = 1;
     this.currentLoanId = 1;
     this.currentRepaymentId = 1;
+    this.currentPasswordId = 1;
     this.sessionStore = new MemoryStore({
       checkPeriod: 86400000,
     });
@@ -257,6 +267,36 @@ export class MemStorage implements IStorage {
 
   async deleteRepayment(id: number): Promise<void> {
     this.repayments.delete(id);
+  }
+
+  async getPasswords(userId: number): Promise<Password[]> {
+    return Array.from(this.passwords.values()).filter(
+      (password) => password.userId === userId,
+    );
+  }
+
+  async getPassword(id: number): Promise<Password | undefined> {
+    return this.passwords.get(id);
+  }
+
+  async createPassword(userId: number, password: InsertPassword): Promise<Password> {
+    const id = this.currentPasswordId++;
+    const newPassword: Password = { ...password, id, userId };
+    this.passwords.set(id, newPassword);
+    return newPassword;
+  }
+
+  async updatePassword(id: number, password: InsertPassword): Promise<Password> {
+    const existing = await this.getPassword(id);
+    if (!existing) throw new Error("Password not found");
+
+    const updated: Password = { ...password, id, userId: existing.userId };
+    this.passwords.set(id, updated);
+    return updated;
+  }
+
+  async deletePassword(id: number): Promise<void> {
+    this.passwords.delete(id);
   }
 }
 

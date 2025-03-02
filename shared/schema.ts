@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, timestamp, decimal } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, decimal } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -42,6 +42,18 @@ export const bankAccounts = pgTable("bank_accounts", {
   ifscCode: text("ifsc_code").notNull(),
   netBankingPassword: text("net_banking_password"),
   mpin: text("mpin"),
+  tags: text("tags").array().notNull().default([]),
+});
+
+export const passwords = pgTable("passwords", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  personName: text("person_name").notNull(),
+  serviceName: text("service_name").notNull(),
+  username: text("username").notNull(),
+  password: text("password").notNull(),
+  isActualPassword: boolean("is_actual_password").notNull().default(false),
+  notes: text("notes"),
   tags: text("tags").array().notNull().default([]),
 });
 
@@ -134,6 +146,16 @@ export const insertBankAccountSchema = z.object({
 export const insertCreditCardSchema = cardValidationSchema;
 export const insertDebitCardSchema = cardValidationSchema;
 
+export const insertPasswordSchema = z.object({
+  personName: z.string().min(1, "Person name is required"),
+  serviceName: z.string().min(1, "Service name is required"),
+  username: z.string().min(1, "Username is required"),
+  password: z.string().min(1, "Password is required"),
+  isActualPassword: z.boolean(),
+  notes: z.string().optional(),
+  tags: z.array(z.string()).default([]),
+});
+
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 export type CreditCard = typeof creditCards.$inferSelect;
@@ -142,6 +164,8 @@ export type BankAccount = typeof bankAccounts.$inferSelect;
 export type InsertCreditCard = z.infer<typeof insertCreditCardSchema>;
 export type InsertDebitCard = z.infer<typeof insertDebitCardSchema>;
 export type InsertBankAccount = z.infer<typeof insertBankAccountSchema>;
+export type Password = typeof passwords.$inferSelect;
+export type InsertPassword = z.infer<typeof insertPasswordSchema>;
 
 export const loans = pgTable("loans", {
   id: serial("id").primaryKey(),
