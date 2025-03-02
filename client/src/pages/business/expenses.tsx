@@ -48,6 +48,7 @@ function ExpenseForm({ onSubmit, defaultValues }: any) {
       paidBy: defaultValues?.paidBy || "",
       paymentMethod: defaultValues?.paymentMethod || "",
       description: defaultValues?.description || "",
+      date: defaultValues?.date || format(new Date(), "yyyy-MM-dd"),
     },
     mode: "onChange",
   });
@@ -61,6 +62,15 @@ function ExpenseForm({ onSubmit, defaultValues }: any) {
 
   return (
     <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
+      <div>
+        <Label htmlFor="date">Date</Label>
+        <Input
+          id="date"
+          type="date"
+          {...form.register("date")}
+        />
+      </div>
+
       <div>
         <Label htmlFor="category">Category</Label>
         <Select
