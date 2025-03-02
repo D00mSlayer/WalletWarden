@@ -8,6 +8,7 @@ import NotFound from "@/pages/not-found";
 import AuthPage from "@/pages/auth-page";
 import Dashboard from "@/pages/dashboard";
 import CreditCards from "@/pages/credit-cards";
+import DebitCards from "@/pages/debit-cards";
 
 function Router() {
   return (
@@ -15,6 +16,7 @@ function Router() {
       <Route path="/auth" component={AuthPage} />
       <ProtectedRoute path="/" component={Dashboard} />
       <ProtectedRoute path="/credit-cards" component={CreditCards} />
+      <ProtectedRoute path="/debit-cards" component={DebitCards} />
       <Route component={NotFound} />
     </Switch>
   );

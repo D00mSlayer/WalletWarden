@@ -20,6 +20,18 @@ export const creditCards = pgTable("credit_cards", {
   tags: text("tags").array().notNull().default([]),
 });
 
+export const debitCards = pgTable("debit_cards", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  cardName: text("card_name").notNull(),
+  cardNumber: text("card_number").notNull(),
+  expiryDate: text("expiry_date").notNull(),
+  cvv: text("cvv").notNull(),
+  cardNetwork: text("card_network").notNull(),
+  issuer: text("issuer").notNull(),
+  tags: text("tags").array().notNull().default([]),
+});
+
 export const cardNetworks = ["Visa", "Mastercard", "Rupay", "American Express"] as const;
 export const bankIssuers = [
   "Axis Bank",
@@ -43,7 +55,7 @@ export const insertUserSchema = createInsertSchema(users).pick({
   password: true,
 });
 
-const creditCardFormSchema = z.object({
+const cardFormSchema = z.object({
   cardNetwork: z.enum(cardNetworks, {
     required_error: "Please select a card network",
   }),
@@ -57,7 +69,8 @@ const creditCardFormSchema = z.object({
   tags: z.array(z.string()).default([]),
 });
 
-export const insertCreditCardSchema = creditCardFormSchema.refine(
+// Same validation for both credit and debit cards
+const cardValidationSchema = cardFormSchema.refine(
   (data) => {
     // Card number validation
     if (!/^\d+$/.test(data.cardNumber)) return false;
@@ -83,7 +96,12 @@ export const insertCreditCardSchema = creditCardFormSchema.refine(
   }
 );
 
+export const insertCreditCardSchema = cardValidationSchema;
+export const insertDebitCardSchema = cardValidationSchema;
+
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 export type CreditCard = typeof creditCards.$inferSelect;
+export type DebitCard = typeof debitCards.$inferSelect;
 export type InsertCreditCard = z.infer<typeof insertCreditCardSchema>;
+export type InsertDebitCard = z.infer<typeof insertDebitCardSchema>;
