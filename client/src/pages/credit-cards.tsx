@@ -344,53 +344,57 @@ function CreditCardItem({ card, onUpdate, onDelete }: any) {
   };
 
   return (
-    <Card className={`relative overflow-hidden bg-gradient-to-br ${gradient} text-white h-52`}>
-      <CardHeader className="flex flex-row items-start justify-between">
-        <div>
+    <Card className={`relative overflow-hidden bg-gradient-to-br ${gradient} text-white h-56`}>
+      <CardHeader className="flex flex-row items-start justify-between pb-2">
+        <div className="flex-1">
           <CardTitle className="text-lg font-normal">{card.issuer}</CardTitle>
         </div>
-        <div className="flex gap-2">
-          <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
-            <DialogTrigger asChild>
-              <Button variant="ghost" size="icon" className="text-white hover:text-white/80">
-                <Pencil className="h-4 w-4" />
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Edit Credit Card</DialogTitle>
-              </DialogHeader>
-              <CardForm onSubmit={handleUpdate} defaultValues={card} />
-            </DialogContent>
-          </Dialog>
+        <div className="flex items-center gap-4">
+          {getCardIcon(card.cardNetwork)}
+          <div className="flex gap-2">
+            <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
+              <DialogTrigger asChild>
+                <Button variant="ghost" size="icon" className="text-white hover:text-white/80">
+                  <Pencil className="h-4 w-4" />
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Edit Credit Card</DialogTitle>
+                </DialogHeader>
+                <CardForm onSubmit={handleUpdate} defaultValues={card} />
+              </DialogContent>
+            </Dialog>
 
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="text-white hover:text-white/80"
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Delete Credit Card</AlertDialogTitle>
-                <AlertDialogDescription>
-                  Are you sure you want to delete this credit card? This action cannot be undone.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={onDelete}>Delete</AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="text-white hover:text-white/80"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Delete Credit Card</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Are you sure you want to delete this credit card? This action cannot be undone.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={onDelete}>Delete</AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
         </div>
       </CardHeader>
+
       <CardContent className="flex flex-col justify-between h-full pt-0">
-        <div className="flex justify-center my-4">
+        <div className="flex-1 flex items-center justify-center">
           <button
             className="text-2xl font-mono focus:outline-none transition-opacity hover:opacity-80"
             onClick={() => setShowFullNumber(!showFullNumber)}
@@ -403,19 +407,15 @@ function CreditCardItem({ card, onUpdate, onDelete }: any) {
             {formatCardNumber(card.cardNumber, card.cardNetwork, showFullNumber)}
           </button>
         </div>
-        <div className="flex items-end justify-between mt-auto">
+
+        <div className="flex items-end justify-between mt-4">
           <div className="space-y-1">
-            <div className="text-xs opacity-75">CARDHOLDER NAME</div>
+            <div className="text-xs opacity-75">CARD NAME</div>
             <div className="font-medium">{card.cardName}</div>
           </div>
-          <div className="flex items-end gap-4">
-            <div className="text-right">
-              <div className="text-xs opacity-75">EXPIRES</div>
-              <div>{card.expiryDate}</div>
-            </div>
-            <div className="ml-4">
-              {getCardIcon(card.cardNetwork)}
-            </div>
+          <div>
+            <div className="text-xs opacity-75">VALID THRU</div>
+            <div className="font-medium text-right">{card.expiryDate}</div>
           </div>
         </div>
       </CardContent>
