@@ -67,6 +67,10 @@ function ExpenseForm({ onSubmit, defaultValues, onCancel }: any) {
   const amount = form.watch("amount");
   const paidBy = form.watch("paidBy");
   const [isSharedExpense, setIsSharedExpense] = useState(false);
+  const [remainingAmount, setRemainingAmount] = useState(0);
+  const personalShare = form.watch("personalShare") || 0;
+  const businessShare = form.watch("businessShare") || 0;
+  const otherShare = form.watch("otherShare") || 0;
 
   // Effect to handle shared expense changes
   useEffect(() => {
@@ -77,7 +81,7 @@ function ExpenseForm({ onSubmit, defaultValues, onCancel }: any) {
     }
   }, [isSharedExpense]);
 
-  // Effect to handle amount changes
+  // Effect to handle amount changes and calculate remaining amount
   useEffect(() => {
     if (amount) {
       const numAmount = Number(amount);
@@ -96,11 +100,28 @@ function ExpenseForm({ onSubmit, defaultValues, onCancel }: any) {
           form.setValue("businessShare", 0, { shouldValidate: true });
           form.setValue("personalShare", 0, { shouldValidate: true });
         }
+        setRemainingAmount(0);
+      } else {
+        const totalShares = personalShare + businessShare + otherShare;
+        setRemainingAmount(Number((numAmount - totalShares).toFixed(2)));
       }
     }
-  }, [amount, isSharedExpense, paidBy]);
+  }, [amount, isSharedExpense, paidBy, personalShare, businessShare, otherShare]);
 
   const handleSubmit = (data: any) => {
+    // Validate total shares match amount for shared expenses
+    if (isSharedExpense) {
+      const totalShares = (data.personalShare || 0) + (data.businessShare || 0) + (data.otherShare || 0);
+      const numAmount = Number(data.amount);
+      if (Math.abs(totalShares - numAmount) > 0.01) {
+        form.setError("businessShare", {
+          type: "manual",
+          message: "Total shares must equal the expense amount"
+        });
+        return;
+      }
+    }
+
     onSubmit({
       ...data,
       amount: Number(data.amount),
@@ -248,7 +269,14 @@ function ExpenseForm({ onSubmit, defaultValues, onCancel }: any) {
 
           {isSharedExpense && (
             <div className="space-y-4 border rounded-lg p-4">
-              <h3 className="font-medium">Expense Breakdown</h3>
+              <div className="flex justify-between items-center">
+                <h3 className="font-medium">Expense Breakdown</h3>
+                <div className="text-sm">
+                  Remaining: <span className={remainingAmount === 0 ? "text-green-600" : "text-red-600"}>
+                    ₹{remainingAmount}
+                  </span>
+                </div>
+              </div>
 
               <div>
                 <Label htmlFor="businessShare">Business Share</Label>
@@ -309,7 +337,7 @@ function ExpenseForm({ onSubmit, defaultValues, onCancel }: any) {
         <Button variant="outline" type="button" onClick={onCancel}>
           Cancel
         </Button>
-        <Button type="submit">
+        <Button type="submit" disabled={form.formState.isSubmitting}>
           {defaultValues ? "Update Expense" : "Add Expense"}
         </Button>
       </DialogFooter>
