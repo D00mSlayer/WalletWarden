@@ -344,11 +344,10 @@ function CreditCardItem({ card, onUpdate, onDelete }: any) {
   };
 
   return (
-    <Card className={`relative overflow-hidden bg-gradient-to-br ${gradient} text-white`}>
-      <CardHeader className="flex flex-row items-start justify-between pb-8">
+    <Card className={`relative overflow-hidden bg-gradient-to-br ${gradient} text-white h-52`}>
+      <CardHeader className="flex flex-row items-start justify-between">
         <div>
-          <CardTitle className="text-lg font-normal mb-1">{card.cardName}</CardTitle>
-          <div className="text-xs opacity-75">{card.issuer}</div>
+          <CardTitle className="text-lg font-normal">{card.issuer}</CardTitle>
         </div>
         <div className="flex gap-2">
           <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
@@ -390,26 +389,32 @@ function CreditCardItem({ card, onUpdate, onDelete }: any) {
           </AlertDialog>
         </div>
       </CardHeader>
-      <CardContent>
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <button
-                className="text-xl font-mono focus:outline-none transition-opacity hover:opacity-80"
-                onClick={() => setShowFullNumber(!showFullNumber)}
-                onContextMenu={(e) => {
-                  e.preventDefault();
-                  copyCardNumber();
-                }}
-                title={showFullNumber ? "Press and hold to copy, click to hide" : "Click to view full number"}
-              >
-                {formatCardNumber(card.cardNumber, card.cardNetwork, showFullNumber)}
-              </button>
-              {getCardIcon(card.cardNetwork)}
+      <CardContent className="flex flex-col justify-between h-full pt-0">
+        <div className="flex justify-center my-4">
+          <button
+            className="text-2xl font-mono focus:outline-none transition-opacity hover:opacity-80"
+            onClick={() => setShowFullNumber(!showFullNumber)}
+            onContextMenu={(e) => {
+              e.preventDefault();
+              copyCardNumber();
+            }}
+            title={showFullNumber ? "Press and hold to copy, click to hide" : "Click to view full number"}
+          >
+            {formatCardNumber(card.cardNumber, card.cardNetwork, showFullNumber)}
+          </button>
+        </div>
+        <div className="flex items-end justify-between mt-auto">
+          <div className="space-y-1">
+            <div className="text-xs opacity-75">CARDHOLDER NAME</div>
+            <div className="font-medium">{card.cardName}</div>
+          </div>
+          <div className="flex items-end gap-4">
+            <div className="text-right">
+              <div className="text-xs opacity-75">EXPIRES</div>
+              <div>{card.expiryDate}</div>
             </div>
-            <div className="text-sm">
-              <div className="opacity-75 text-xs mb-1">Expires</div>
-              {card.expiryDate}
+            <div className="ml-4">
+              {getCardIcon(card.cardNetwork)}
             </div>
           </div>
         </div>
