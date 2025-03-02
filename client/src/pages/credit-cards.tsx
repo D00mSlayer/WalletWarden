@@ -82,15 +82,15 @@ function CardForm({ onSubmit, defaultValues }: any) {
       cvv: defaultValues?.cvv || "",
       cardNetwork: defaultValues?.cardNetwork || "",
       issuer: defaultValues?.issuer || "",
-      tags: defaultValues?.tags || [],
+      tags: Array.isArray(defaultValues?.tags) ? defaultValues.tags : [],
     },
     mode: "onChange",
   });
 
   const cardNetwork = form.watch("cardNetwork");
   const [prevNetwork, setPrevNetwork] = useState(cardNetwork);
-  const tags = form.watch("tags") || [];
   const [newTag, setNewTag] = useState("");
+  const tags = form.watch("tags") || [];
 
   const expiryRef = useRef<HTMLInputElement>(null);
   const cvvRef = useRef<HTMLInputElement>(null);
@@ -300,7 +300,7 @@ function CardForm({ onSubmit, defaultValues }: any) {
       <div>
         <Label htmlFor="tags">Tags</Label>
         <div className="flex flex-wrap gap-2 mb-2">
-          {tags.map((tag: string) => (
+          {Array.isArray(tags) && tags.map((tag: string) => (
             <Badge key={tag} variant="secondary" className="text-sm">
               {tag}
               <button
@@ -319,7 +319,6 @@ function CardForm({ onSubmit, defaultValues }: any) {
           onChange={(e) => setNewTag(e.target.value)}
           onKeyDown={handleAddTag}
           placeholder="Type a tag and press Enter"
-          {...form.register("tags")}
         />
       </div>
 
