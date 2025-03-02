@@ -56,6 +56,21 @@ function formatExpiryDate(value: string) {
   return cleaned;
 }
 
+function formatCardNumber(number: string, network: string, showFull: boolean = false): string {
+  if (!showFull) {
+    if (network === "American Express") {
+      return `•••• •••••• ${number.slice(-5)}`;
+    }
+    return `•••• •••• •••• ${number.slice(-4)}`;
+  }
+
+  // Format full number
+  if (network === "American Express") {
+    return `${number.slice(0, 4)} ${number.slice(4, 10)} ${number.slice(10)}`;
+  }
+  return `${number.slice(0, 4)} ${number.slice(4, 8)} ${number.slice(8, 12)} ${number.slice(12)}`;
+}
+
 function CardForm({ onSubmit, defaultValues }: any) {
   const form = useForm({
     resolver: zodResolver(insertCreditCardSchema),
@@ -291,7 +306,30 @@ function getCardGradient(network: string) {
 
 function CreditCardItem({ card, onUpdate, onDelete }: any) {
   const [isEditOpen, setIsEditOpen] = useState(false);
+  const [showFullNumber, setShowFullNumber] = useState(false);
+  const { toast } = useToast();
   const gradient = getCardGradient(card.cardNetwork);
+
+  const handleUpdate = async (data: any) => {
+    await onUpdate(data);
+    setIsEditOpen(false);
+  };
+
+  const copyCardNumber = async () => {
+    try {
+      await navigator.clipboard.writeText(card.cardNumber);
+      toast({
+        title: "Card number copied",
+        description: "The card number has been copied to your clipboard",
+      });
+    } catch (err) {
+      toast({
+        title: "Failed to copy",
+        description: "Could not copy the card number to clipboard",
+        variant: "destructive",
+      });
+    }
+  };
 
   return (
     <Card className={`relative overflow-hidden bg-gradient-to-br ${gradient} text-white`}>
@@ -311,7 +349,7 @@ function CreditCardItem({ card, onUpdate, onDelete }: any) {
               <DialogHeader>
                 <DialogTitle>Edit Credit Card</DialogTitle>
               </DialogHeader>
-              <CardForm onSubmit={onUpdate} defaultValues={card} />
+              <CardForm onSubmit={handleUpdate} defaultValues={card} />
             </DialogContent>
           </Dialog>
 
@@ -343,9 +381,17 @@ function CreditCardItem({ card, onUpdate, onDelete }: any) {
       <CardContent>
         <div className="space-y-4">
           <div className="flex justify-between items-center">
-            <div className="text-xl tracking-widest">
-              ••••{card.cardNumber.slice(-4)}
-            </div>
+            <button
+              className="text-xl tracking-widest focus:outline-none transition-opacity hover:opacity-80"
+              onClick={() => setShowFullNumber(!showFullNumber)}
+              onContextMenu={(e) => {
+                e.preventDefault();
+                copyCardNumber();
+              }}
+              title="Click to view full number, press and hold to copy"
+            >
+              {formatCardNumber(card.cardNumber, card.cardNetwork, showFullNumber)}
+            </button>
             {getCardIcon(card.cardNetwork)}
           </div>
           <div className="flex justify-between items-end text-sm">
