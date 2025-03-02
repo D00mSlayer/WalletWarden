@@ -50,6 +50,10 @@ export interface IStorage {
   createCustomerCredit(userId: number, credit: InsertCustomerCredit): Promise<CustomerCredit>;
   markCustomerCreditPaid(id: number): Promise<CustomerCredit>;
   deleteCustomerCredit(id: number): Promise<void>;
+  getExpenses(userId: number): Promise<Expense[]>;
+  getExpense(id: number): Promise<Expense | undefined>;
+  createExpense(userId: number, expense: InsertExpense): Promise<Expense>;
+  deleteExpense(id: number): Promise<void>;
 }
 
 export class MemStorage implements IStorage {
@@ -61,6 +65,7 @@ export class MemStorage implements IStorage {
   private repayments: Map<number, Repayment>;
   private passwords: Map<number, Password>;
   private customerCredits: Map<number, CustomerCredit>;
+  private expenses: Map<number, Expense>;
   private currentUserId: number;
   private currentCardId: number;
   private currentAccountId: number;
@@ -68,6 +73,7 @@ export class MemStorage implements IStorage {
   private currentRepaymentId: number;
   private currentPasswordId: number;
   private currentCustomerCreditId: number;
+  private currentExpenseId: number;
   sessionStore: session.Store;
 
   constructor() {
@@ -79,6 +85,7 @@ export class MemStorage implements IStorage {
     this.repayments = new Map();
     this.passwords = new Map();
     this.customerCredits = new Map();
+    this.expenses = new Map();
     this.currentUserId = 1;
     this.currentCardId = 1;
     this.currentAccountId = 1;
@@ -86,6 +93,7 @@ export class MemStorage implements IStorage {
     this.currentRepaymentId = 1;
     this.currentPasswordId = 1;
     this.currentCustomerCreditId = 1;
+    this.currentExpenseId = 1;
     this.sessionStore = new MemoryStore({
       checkPeriod: 86400000,
     });
@@ -350,6 +358,34 @@ export class MemStorage implements IStorage {
 
   async deleteCustomerCredit(id: number): Promise<void> {
     this.customerCredits.delete(id);
+  }
+
+  async getExpenses(userId: number): Promise<Expense[]> {
+    return Array.from(this.expenses.values()).filter(
+      (expense) => expense.userId === userId,
+    );
+  }
+
+  async getExpense(id: number): Promise<Expense | undefined> {
+    return this.expenses.get(id);
+  }
+
+  async createExpense(userId: number, expense: InsertExpense): Promise<Expense> {
+    const id = this.currentExpenseId++;
+    const newExpense: Expense = {
+      ...expense,
+      id,
+      userId,
+      date: expense.date ? new Date(expense.date) : new Date(),
+      amount: String(expense.amount),
+      description: expense.description || null,
+    };
+    this.expenses.set(id, newExpense);
+    return newExpense;
+  }
+
+  async deleteExpense(id: number): Promise<void> {
+    this.expenses.delete(id);
   }
 }
 

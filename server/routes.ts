@@ -275,6 +275,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.sendStatus(204);
   });
 
+  // Expense Routes
+  app.get("/api/business/expenses", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    const expenses = await storage.getExpenses(req.user.id);
+    res.json(expenses);
+  });
+
+  app.post("/api/business/expenses", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    const parsed = insertExpenseSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json(parsed.error);
+
+    const expense = await storage.createExpense(req.user.id, parsed.data);
+    res.status(201).json(expense);
+  });
+
+  app.delete("/api/business/expenses/:id", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+
+    const expense = await storage.getExpense(parseInt(req.params.id));
+    if (!expense || expense.userId !== req.user.id) return res.sendStatus(404);
+
+    await storage.deleteExpense(expense.id);
+    res.sendStatus(204);
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
