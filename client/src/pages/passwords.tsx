@@ -2,7 +2,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogContent,
@@ -15,7 +14,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { insertPasswordSchema, type Password } from "@shared/schema";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Loader2, PlusCircle, Pencil, Trash2, Eye, EyeOff, X } from "lucide-react";
+import { Loader2, PlusCircle, Pencil, Trash2, Eye, EyeOff, Copy } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "wouter";
 import { useState, useEffect } from "react";
@@ -42,32 +41,9 @@ function PasswordForm({ onSubmit, defaultValues }: any) {
       password: defaultValues?.password || "",
       isActualPassword: defaultValues?.isActualPassword || false,
       notes: defaultValues?.notes || "",
-      tags: Array.isArray(defaultValues?.tags) ? defaultValues.tags : [],
     },
     mode: "onChange",
   });
-
-  const [newTag, setNewTag] = useState("");
-  const tags = form.watch("tags") || [];
-
-  const handleAddTag = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter" && newTag.trim()) {
-      e.preventDefault();
-      const trimmedTag = newTag.trim();
-      if (!tags.includes(trimmedTag)) {
-        form.setValue("tags", [...tags, trimmedTag], { shouldValidate: true });
-        setNewTag("");
-      }
-    }
-  };
-
-  const handleRemoveTag = (tagToRemove: string) => {
-    form.setValue(
-      "tags",
-      tags.filter((tag: string) => tag !== tagToRemove),
-      { shouldValidate: true }
-    );
-  };
 
   return (
     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
@@ -136,31 +112,6 @@ function PasswordForm({ onSubmit, defaultValues }: any) {
         />
       </div>
 
-      <div>
-        <Label htmlFor="tags">Tags</Label>
-        <div className="flex flex-wrap gap-2 mb-2">
-          {Array.isArray(tags) && tags.map((tag: string) => (
-            <Badge key={tag} variant="secondary" className="text-sm">
-              {tag}
-              <button
-                type="button"
-                onClick={() => handleRemoveTag(tag)}
-                className="ml-1 hover:text-destructive focus:outline-none"
-              >
-                <X className="h-3 w-3" />
-              </button>
-            </Badge>
-          ))}
-        </div>
-        <Input
-          id="tags"
-          value={newTag}
-          onChange={(e) => setNewTag(e.target.value)}
-          onKeyDown={handleAddTag}
-          placeholder="Type a tag and press Enter"
-        />
-      </div>
-
       <Button type="submit" className="w-full">
         {defaultValues ? "Update Password" : "Add Password"}
       </Button>
@@ -188,17 +139,17 @@ function PasswordCard({ password, onUpdate, onDelete }: any) {
     setIsEditOpen(false);
   };
 
-  const copyToClipboard = async () => {
+  const copyToClipboard = async (text: string, what: string) => {
     try {
-      await navigator.clipboard.writeText(password.password);
+      await navigator.clipboard.writeText(text);
       toast({
-        title: "Password copied",
-        description: "The password has been copied to your clipboard",
+        title: `${what} copied`,
+        description: `The ${what.toLowerCase()} has been copied to your clipboard`,
       });
     } catch (err) {
       toast({
         title: "Failed to copy",
-        description: "Could not copy the password to clipboard",
+        description: "Could not copy to clipboard",
         variant: "destructive",
       });
     }
@@ -257,9 +208,9 @@ function PasswordCard({ password, onUpdate, onDelete }: any) {
                 variant="ghost"
                 size="icon"
                 className="h-6 w-6"
-                onClick={() => navigator.clipboard.writeText(password.username)}
+                onClick={() => copyToClipboard(password.username, "Username")}
               >
-                <Pencil className="h-3 w-3" />
+                <Copy className="h-3 w-3" />
               </Button>
             </div>
           </div>
@@ -273,12 +224,12 @@ function PasswordCard({ password, onUpdate, onDelete }: any) {
                 variant="ghost"
                 size="sm"
                 className="h-6"
-                onClick={() => password.isActualPassword ? setShowPassword(!showPassword) : copyToClipboard()}
+                onClick={() => password.isActualPassword ? setShowPassword(!showPassword) : copyToClipboard(password.password, "Password")}
               >
                 {password.isActualPassword ? (
                   showPassword ? <EyeOff className="h-3 w-3 mr-1" /> : <Eye className="h-3 w-3 mr-1" />
                 ) : (
-                  <Pencil className="h-3 w-3 mr-1" />
+                  <Copy className="h-3 w-3 mr-1" />
                 )}
                 {password.isActualPassword ? (showPassword ? "Hide" : "Show") : "Copy"}
               </Button>
@@ -296,18 +247,6 @@ function PasswordCard({ password, onUpdate, onDelete }: any) {
             <div>
               <div className="text-sm font-medium mb-1">Notes</div>
               <div className="text-sm text-muted-foreground">{password.notes}</div>
-            </div>
-          )}
-
-          {password.tags && password.tags.length > 0 && (
-            <div>
-              <div className="flex flex-wrap gap-1">
-                {password.tags.map((tag: string) => (
-                  <Badge key={tag} variant="secondary" className="text-xs">
-                    {tag}
-                  </Badge>
-                ))}
-              </div>
             </div>
           )}
         </div>

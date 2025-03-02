@@ -54,7 +54,6 @@ export const passwords = pgTable("passwords", {
   password: text("password").notNull(),
   isActualPassword: boolean("is_actual_password").notNull().default(false),
   notes: text("notes"),
-  tags: text("tags").array().notNull().default([]),
 });
 
 export const cardNetworks = ["Visa", "Mastercard", "Rupay", "American Express"] as const;
@@ -153,7 +152,6 @@ export const insertPasswordSchema = z.object({
   password: z.string().min(1, "Password is required"),
   isActualPassword: z.boolean(),
   notes: z.string().optional(),
-  tags: z.array(z.string()).default([]),
 });
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
