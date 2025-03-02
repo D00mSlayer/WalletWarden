@@ -16,6 +16,7 @@ import Business from "@/pages/business";
 import CustomerCredits from "@/pages/business/credits";
 import Expenses from "@/pages/business/expenses";
 import Sales from "@/pages/business/sales";
+import Analytics from "@/pages/business/analytics";
 
 function Router() {
   return (
@@ -31,6 +32,7 @@ function Router() {
       <ProtectedRoute path="/business/credits" component={CustomerCredits} />
       <ProtectedRoute path="/business/expenses" component={Expenses} />
       <ProtectedRoute path="/business/sales" component={Sales} />
+      <ProtectedRoute path="/business/analytics" component={Analytics} />
       <Route component={NotFound} />
     </Switch>
   );

@@ -1,6 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Link } from "wouter";
-import { Store, UserSquare2, Receipt, Wallet2, LineChart } from "lucide-react";
+import { Store, UserSquare2, Receipt, LineChart, BarChart3 } from "lucide-react";
 
 const sections = [
   {
@@ -23,6 +23,13 @@ const sections = [
     href: "/business/sales",
     icon: LineChart,
     color: "text-green-500",
+  },
+  {
+    title: "Analytics",
+    description: "View business performance metrics",
+    href: "/business/analytics",
+    icon: BarChart3,
+    color: "text-purple-500",
   },
 ];
 
