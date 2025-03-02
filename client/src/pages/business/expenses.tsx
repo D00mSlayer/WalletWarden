@@ -124,14 +124,50 @@ function ExpenseForm({ onSubmit, defaultValues, onCancel }: any) {
         });
         return;
       }
+
+      // Validate payment methods for shares with amounts
+      if ((data.personalShare || 0) > 0 && !data.personalPaymentMethod) {
+        form.setError("personalPaymentMethod", {
+          type: "manual",
+          message: "Please select payment method for personal share"
+        });
+        return;
+      }
+      if ((data.businessShare || 0) > 0 && !data.businessPaymentMethod) {
+        form.setError("businessPaymentMethod", {
+          type: "manual",
+          message: "Please select payment method for business share"
+        });
+        return;
+      }
+      if ((data.otherShare || 0) > 0 && !data.otherPaymentMethod) {
+        form.setError("otherPaymentMethod", {
+          type: "manual",
+          message: "Please select payment method for other share"
+        });
+        return;
+      }
+
+      // For shared expenses, clear the main payment method and paidBy
+      data.paymentMethod = undefined;
+      data.paidBy = undefined;
+      data.otherPerson = undefined;
+    } else {
+      // For non-shared expenses, clear the share-related fields
+      data.personalShare = 0;
+      data.businessShare = 0;
+      data.otherShare = 0;
+      data.personalPaymentMethod = undefined;
+      data.businessPaymentMethod = undefined;
+      data.otherPaymentMethod = undefined;
     }
 
     onSubmit({
       ...data,
       amount: Number(data.amount),
-      personalShare: Number(data.personalShare),
-      businessShare: Number(data.businessShare),
-      otherShare: Number(data.otherShare),
+      personalShare: Number(data.personalShare || 0),
+      businessShare: Number(data.businessShare || 0),
+      otherShare: Number(data.otherShare || 0),
       otherPerson: data.paidBy === "Other" ? data.otherPerson : undefined,
     });
   };
@@ -312,6 +348,9 @@ function ExpenseForm({ onSubmit, defaultValues, onCancel }: any) {
                         ))}
                       </SelectContent>
                     </Select>
+                    {form.formState.errors.businessPaymentMethod && (
+                      <p className="text-sm text-red-500">{form.formState.errors.businessPaymentMethod.message as string}</p>
+                    )}
                   </div>
                 )}
                 {form.formState.errors.businessShare && (
@@ -349,6 +388,9 @@ function ExpenseForm({ onSubmit, defaultValues, onCancel }: any) {
                         ))}
                       </SelectContent>
                     </Select>
+                    {form.formState.errors.personalPaymentMethod && (
+                      <p className="text-sm text-red-500">{form.formState.errors.personalPaymentMethod.message as string}</p>
+                    )}
                   </div>
                 )}
                 {form.formState.errors.personalShare && (
@@ -386,6 +428,9 @@ function ExpenseForm({ onSubmit, defaultValues, onCancel }: any) {
                         ))}
                       </SelectContent>
                     </Select>
+                    {form.formState.errors.otherPaymentMethod && (
+                      <p className="text-sm text-red-500">{form.formState.errors.otherPaymentMethod.message as string}</p>
+                    )}
                   </div>
                 )}
                 {form.formState.errors.otherShare && (
