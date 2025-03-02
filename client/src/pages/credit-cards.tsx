@@ -467,15 +467,6 @@ function CreditCardItem({ card, onUpdate, onDelete }: any) {
               {card.expiryDate}
             </div>
           </div>
-          {card.tags && card.tags.length > 0 && (
-            <div className="flex flex-wrap gap-2 mt-2">
-              {card.tags.map((tag: string) => (
-                <Badge key={tag} variant="outline" className="text-xs bg-white/10 text-white border-white/20">
-                  {tag}
-                </Badge>
-              ))}
-            </div>
-          )}
         </div>
       </CardContent>
     </Card>
