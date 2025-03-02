@@ -392,22 +392,22 @@ function CreditCardItem({ card, onUpdate, onDelete }: any) {
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
-          <div className="flex justify-between items-center">
-            <button
-              className="text-xl tracking-widest font-mono w-48 text-left focus:outline-none transition-opacity hover:opacity-80"
-              onClick={() => setShowFullNumber(!showFullNumber)}
-              onContextMenu={(e) => {
-                e.preventDefault();
-                copyCardNumber();
-              }}
-              title={showFullNumber ? "Press and hold to copy, click to hide" : "Click to view full number"}
-            >
-              {formatCardNumber(card.cardNumber, card.cardNetwork, showFullNumber)}
-            </button>
-            {getCardIcon(card.cardNetwork)}
-          </div>
-          <div className="flex justify-between items-end text-sm">
-            <div>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <button
+                className="text-xl font-mono focus:outline-none transition-opacity hover:opacity-80"
+                onClick={() => setShowFullNumber(!showFullNumber)}
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  copyCardNumber();
+                }}
+                title={showFullNumber ? "Press and hold to copy, click to hide" : "Click to view full number"}
+              >
+                {formatCardNumber(card.cardNumber, card.cardNetwork, showFullNumber)}
+              </button>
+              {getCardIcon(card.cardNetwork)}
+            </div>
+            <div className="text-sm">
               <div className="opacity-75 text-xs mb-1">Expires</div>
               {card.expiryDate}
             </div>
