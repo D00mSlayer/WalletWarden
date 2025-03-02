@@ -138,7 +138,7 @@ function RepaymentForm({ onSubmit }: { onSubmit: (data: any) => void }) {
   });
 
   const handleSubmit = (data: any) => {
-    // Convert amount to number for validation
+    // Ensure amount is properly converted to number
     const formData = {
       ...data,
       amount: Number(data.amount),
@@ -157,7 +157,7 @@ function RepaymentForm({ onSubmit }: { onSubmit: (data: any) => void }) {
             type="number"
             step="0.01"
             className="pl-10"
-            {...form.register("amount")}
+            {...form.register("amount", { valueAsNumber: true })}
           />
         </div>
         {form.formState.errors.amount && (
