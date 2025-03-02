@@ -54,7 +54,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "wouter";
 import { format } from "date-fns";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 function ExpenseForm({ onSubmit, defaultValues, onCancel }: any) {
   const [isSharedExpense, setIsSharedExpense] = useState(false);
@@ -101,8 +101,9 @@ function ExpenseForm({ onSubmit, defaultValues, onCancel }: any) {
 
   const handleSubmit = async (data: any) => {
     try {
-      console.log("Form submission data:", data);
-      console.log("Current shares state:", shares);
+      console.log("[ExpenseForm] Starting form submission");
+      console.log("[ExpenseForm] Form data:", data);
+      console.log("[ExpenseForm] Current shares:", shares);
 
       if (isSharedExpense) {
         if (shares.length === 0) {
@@ -115,7 +116,8 @@ function ExpenseForm({ onSubmit, defaultValues, onCancel }: any) {
         }
 
         const totalShares = shares.reduce((sum, share) => sum + share.amount, 0);
-        console.log("Total shares:", totalShares, "Amount:", Number(data.amount));
+        console.log("[ExpenseForm] Total shares amount:", totalShares);
+        console.log("[ExpenseForm] Form amount:", Number(data.amount));
 
         if (Math.abs(totalShares - Number(data.amount)) > 0.01) {
           toast({
@@ -126,25 +128,6 @@ function ExpenseForm({ onSubmit, defaultValues, onCancel }: any) {
           return;
         }
 
-        // Check for required fields in shares
-        for (const share of shares) {
-          if (share.payerType === "Other" && !share.payerName) {
-            toast({
-              title: "Error",
-              description: "Person name is required for 'Other' payer type",
-              variant: "destructive",
-            });
-            return;
-          }
-          if (!share.paymentMethod) {
-            toast({
-              title: "Error",
-              description: "Payment method is required for all shares",
-              variant: "destructive",
-            });
-            return;
-          }
-        }
 
         const formattedData = {
           category: data.category,
@@ -152,9 +135,13 @@ function ExpenseForm({ onSubmit, defaultValues, onCancel }: any) {
           date: data.date,
           description: data.description,
           isSharedExpense: true,
-          shares: shares
+          shares: shares.map(share => ({
+            ...share,
+            amount: Number(share.amount)
+          }))
         };
-        console.log("Submitting shared expense:", formattedData);
+
+        console.log("[ExpenseForm] Submitting shared expense:", formattedData);
         await onSubmit(formattedData);
       } else {
         if (data.paidBy === "Other" && !data.payerName) {
@@ -176,11 +163,12 @@ function ExpenseForm({ onSubmit, defaultValues, onCancel }: any) {
           payerName: data.payerName,
           paymentMethod: data.paymentMethod,
         };
-        console.log("Submitting individual expense:", formattedData);
+
+        console.log("[ExpenseForm] Submitting individual expense:", formattedData);
         await onSubmit(formattedData);
       }
     } catch (error) {
-      console.error("Form submission error:", error);
+      console.error("[ExpenseForm] Submission error:", error);
       toast({
         title: "Error",
         description: "Failed to submit expense",
@@ -188,6 +176,10 @@ function ExpenseForm({ onSubmit, defaultValues, onCancel }: any) {
       });
     }
   };
+
+  useEffect(() => {
+    console.log("[ExpenseForm] Shares updated:", shares);
+  }, [shares]);
 
   return (
     <form onSubmit={form.handleSubmit(handleSubmit)}>
@@ -511,7 +503,6 @@ function ExpenseCard({ expense, onDelete }: { expense: Expense; onDelete: (id: n
           </div>
 
           {!expense.isSharedExpense ? (
-            // Individual expense display
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <div className="text-sm font-medium mb-1">Paid By</div>
@@ -525,7 +516,6 @@ function ExpenseCard({ expense, onDelete }: { expense: Expense; onDelete: (id: n
               </div>
             </div>
           ) : (
-            // Shared expense display
             <div>
               <div className="flex items-center gap-2 mb-2">
                 <Users className="h-4 w-4" />
@@ -571,31 +561,32 @@ export default function Expenses() {
   const addExpenseMutation = useMutation({
     mutationFn: async (data: any) => {
       try {
-        console.log("Mutation request data:", data);
+        console.log("[Mutation] Starting expense creation with data:", data);
         const res = await apiRequest("POST", "/api/business/expenses", data);
-        console.log("API response status:", res.status);
+        console.log("[Mutation] API response status:", res.status);
 
         if (!res.ok) {
           const errorData = await res.json();
-          console.error("API error response:", errorData);
+          console.error("[Mutation] API error response:", errorData);
           throw new Error(errorData.message || "Failed to add expense");
         }
 
         const responseData = await res.json();
-        console.log("API success response:", responseData);
+        console.log("[Mutation] API success response:", responseData);
         return responseData;
       } catch (error: any) {
-        console.error("Mutation error:", error);
+        console.error("[Mutation] Error occurred:", error);
         throw new Error(error.message || "Failed to add expense");
       }
     },
     onSuccess: () => {
+      console.log("[Mutation] Successfully added expense");
       queryClient.invalidateQueries({ queryKey: ["/api/business/expenses"] });
       toast({ title: "Expense added successfully" });
       setIsOpen(false);
     },
     onError: (error: Error) => {
-      console.error("Mutation onError:", error);
+      console.error("[Mutation] Error in mutation:", error);
       toast({
         title: "Failed to add expense",
         description: error.message,
