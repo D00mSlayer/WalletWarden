@@ -22,7 +22,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { insertLoanSchema, insertRepaymentSchema, type Loan, type Repayment } from "@shared/schema";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Loader2, IndianRupee, CheckCircle2, History, X, Pencil } from "lucide-react";
+import { Loader2, IndianRupee, CheckCircle2, History, X, Pencil, PlusCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "wouter";
 import { useState } from "react";
