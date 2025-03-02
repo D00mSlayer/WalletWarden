@@ -57,11 +57,12 @@ function SalesForm({ onSubmit, defaultValues, onCancel }: any) {
     try {
       console.log("[SalesForm] Starting form submission with data:", data);
 
+      // Convert string amounts to numbers
       const formattedData = {
         date: data.date,
-        cashAmount: Number(data.cashAmount || 0),
-        cardAmount: Number(data.cardAmount || 0),
-        upiAmount: Number(data.upiAmount || 0),
+        cashAmount: data.cashAmount ? Number(data.cashAmount) : 0,
+        cardAmount: data.cardAmount ? Number(data.cardAmount) : 0,
+        upiAmount: data.upiAmount ? Number(data.upiAmount) : 0,
         notes: data.notes || "",
       };
 
@@ -103,7 +104,9 @@ function SalesForm({ onSubmit, defaultValues, onCancel }: any) {
               step="0.01"
               placeholder="Enter cash amount"
               className="pl-10"
-              {...form.register("cashAmount")}
+              {...form.register("cashAmount", { 
+                setValueAs: (value) => value === "" ? 0 : Number(value)
+              })}
             />
           </div>
           {form.formState.errors.cashAmount && (
@@ -121,7 +124,9 @@ function SalesForm({ onSubmit, defaultValues, onCancel }: any) {
               step="0.01"
               placeholder="Enter card amount"
               className="pl-10"
-              {...form.register("cardAmount")}
+              {...form.register("cardAmount", {
+                setValueAs: (value) => value === "" ? 0 : Number(value)
+              })}
             />
           </div>
           {form.formState.errors.cardAmount && (
@@ -139,7 +144,9 @@ function SalesForm({ onSubmit, defaultValues, onCancel }: any) {
               step="0.01"
               placeholder="Enter UPI amount"
               className="pl-10"
-              {...form.register("upiAmount")}
+              {...form.register("upiAmount", {
+                setValueAs: (value) => value === "" ? 0 : Number(value)
+              })}
             />
           </div>
           {form.formState.errors.upiAmount && (

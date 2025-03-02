@@ -349,7 +349,7 @@ export const insertDailySalesSchema = z.object({
   cardAmount: z.number().min(0, "Card amount cannot be negative"),
   notes: z.string().optional(),
 }).refine(data => {
-  const total = data.cashAmount + data.upiAmount + data.cardAmount;
+  const total = Number(data.cashAmount) + Number(data.upiAmount) + Number(data.cardAmount);
   return total > 0;
 }, {
   message: "At least one payment method must have a value greater than 0",
