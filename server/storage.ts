@@ -247,7 +247,9 @@ export class MemStorage implements IStorage {
       ...repayment,
       id,
       loanId,
-      date: new Date(),
+      date: repayment.date ? new Date(repayment.date) : new Date(),
+      amount: String(repayment.amount), // Convert to string as per schema
+      note: repayment.note || null,
     };
     this.repayments.set(id, newRepayment);
     return newRepayment;

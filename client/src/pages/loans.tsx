@@ -137,8 +137,17 @@ function RepaymentForm({ onSubmit }: { onSubmit: (data: any) => void }) {
     mode: "onChange",
   });
 
+  const handleSubmit = (data: any) => {
+    // Convert amount to number for validation
+    const formData = {
+      ...data,
+      amount: Number(data.amount),
+    };
+    onSubmit(formData);
+  };
+
   return (
-    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+    <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
       <div>
         <Label htmlFor="amount">Amount</Label>
         <div className="relative">
@@ -148,7 +157,7 @@ function RepaymentForm({ onSubmit }: { onSubmit: (data: any) => void }) {
             type="number"
             step="0.01"
             className="pl-10"
-            {...form.register("amount", { valueAsNumber: true })}
+            {...form.register("amount")}
           />
         </div>
         {form.formState.errors.amount && (
@@ -410,8 +419,8 @@ export default function Loans() {
     },
   });
 
-  const activeLoans = loans?.filter((loan) => loan.status === "active") || [];
-  const completedLoans = loans?.filter((loan) => loan.status === "completed") || [];
+  const activeLoans = loans?.filter((loan:any) => loan.status === "active") || [];
+  const completedLoans = loans?.filter((loan:any) => loan.status === "completed") || [];
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -458,7 +467,7 @@ export default function Loans() {
                 </Card>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {activeLoans.map((loan) => (
+                  {activeLoans.map((loan:any) => (
                     <LoanCard
                       key={loan.id}
                       loan={loan}
@@ -475,7 +484,7 @@ export default function Loans() {
               <div>
                 <h2 className="text-xl font-semibold mb-4">Completed Loans</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {completedLoans.map((loan) => (
+                  {completedLoans.map((loan:any) => (
                     <LoanCard
                       key={loan.id}
                       loan={loan}
