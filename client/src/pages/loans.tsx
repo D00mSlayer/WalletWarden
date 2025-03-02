@@ -380,6 +380,17 @@ function LoanCard({ loan, onUpdate, onComplete, onDelete }: any) {
   );
 }
 
+function groupLoansByPerson(loans: Loan[]) {
+  return loans.reduce((groups: { [key: string]: Loan[] }, loan) => {
+    const person = loan.personName;
+    if (!groups[person]) {
+      groups[person] = [];
+    }
+    groups[person].push(loan);
+    return groups;
+  }, {});
+}
+
 export default function Loans() {
   const { toast } = useToast();
   const [isOpen, setIsOpen] = useState(false);
@@ -434,6 +445,13 @@ export default function Loans() {
   const activeLoans = loans?.filter((loan:any) => loan.status === "active") || [];
   const completedLoans = loans?.filter((loan:any) => loan.status === "completed") || [];
 
+  const groupedActiveLoans = groupLoansByPerson(activeLoans);
+  const groupedCompletedLoans = groupLoansByPerson(completedLoans);
+
+  // Sort names alphabetically
+  const activePersons = Object.keys(groupedActiveLoans).sort();
+  const completedPersons = Object.keys(groupedCompletedLoans).sort();
+
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white border-b">
@@ -471,37 +489,55 @@ export default function Loans() {
           <div className="space-y-8">
             <div>
               <h2 className="text-xl font-semibold mb-4">Active Loans</h2>
-              {activeLoans.length === 0 ? (
+              {activePersons.length === 0 ? (
                 <Card>
                   <CardContent className="py-8 text-center text-gray-500">
                     No active loans
                   </CardContent>
                 </Card>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {activeLoans.map((loan:any) => (
-                    <LoanCard
-                      key={loan.id}
-                      loan={loan}
-                      onUpdate={(data) => updateLoanMutation.mutate({ id: loan.id, data })}
-                      onComplete={() => completeLoanMutation.mutate(loan.id)}
-                      onDelete={() => deleteLoanMutation.mutate(loan.id)}
-                    />
+                <div className="space-y-8">
+                  {activePersons.map((person) => (
+                    <div key={person}>
+                      <h3 className="text-lg font-medium mb-4 text-muted-foreground">
+                        {person}
+                      </h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {groupedActiveLoans[person].map((loan:any) => (
+                          <LoanCard
+                            key={loan.id}
+                            loan={loan}
+                            onUpdate={(data) => updateLoanMutation.mutate({ id: loan.id, data })}
+                            onComplete={() => completeLoanMutation.mutate(loan.id)}
+                            onDelete={() => deleteLoanMutation.mutate(loan.id)}
+                          />
+                        ))}
+                      </div>
+                    </div>
                   ))}
                 </div>
               )}
             </div>
 
-            {completedLoans.length > 0 && (
+            {completedPersons.length > 0 && (
               <div>
                 <h2 className="text-xl font-semibold mb-4">Completed Loans</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {completedLoans.map((loan:any) => (
-                    <LoanCard
-                      key={loan.id}
-                      loan={loan}
-                      onDelete={() => deleteLoanMutation.mutate(loan.id)}
-                    />
+                <div className="space-y-8">
+                  {completedPersons.map((person) => (
+                    <div key={person}>
+                      <h3 className="text-lg font-medium mb-4 text-muted-foreground">
+                        {person}
+                      </h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {groupedCompletedLoans[person].map((loan:any) => (
+                          <LoanCard
+                            key={loan.id}
+                            loan={loan}
+                            onDelete={() => deleteLoanMutation.mutate(loan.id)}
+                          />
+                        ))}
+                      </div>
+                    </div>
                   ))}
                 </div>
               </div>
