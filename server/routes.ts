@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { setupAuth } from "./auth";
 import { storage } from "./storage";
-import { insertCreditCardSchema, insertDebitCardSchema } from "@shared/schema";
+import { insertCreditCardSchema, insertDebitCardSchema, insertBankAccountSchema } from "@shared/schema";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   setupAuth(app);
@@ -79,6 +79,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
     if (!card || card.userId !== req.user.id) return res.sendStatus(404);
 
     await storage.deleteDebitCard(card.id);
+    res.sendStatus(204);
+  });
+
+  // Bank Account Routes
+  app.get("/api/bank-accounts", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    const accounts = await storage.getBankAccounts(req.user.id);
+    res.json(accounts);
+  });
+
+  app.post("/api/bank-accounts", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    const parsed = insertBankAccountSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json(parsed.error);
+
+    const account = await storage.createBankAccount(req.user.id, parsed.data);
+    res.status(201).json(account);
+  });
+
+  app.patch("/api/bank-accounts/:id", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    const parsed = insertBankAccountSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json(parsed.error);
+
+    const account = await storage.getBankAccount(parseInt(req.params.id));
+    if (!account || account.userId !== req.user.id) return res.sendStatus(404);
+
+    const updated = await storage.updateBankAccount(account.id, parsed.data);
+    res.json(updated);
+  });
+
+  app.delete("/api/bank-accounts/:id", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+
+    const account = await storage.getBankAccount(parseInt(req.params.id));
+    if (!account || account.userId !== req.user.id) return res.sendStatus(404);
+
+    await storage.deleteBankAccount(account.id);
     res.sendStatus(204);
   });
 

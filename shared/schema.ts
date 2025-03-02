@@ -32,6 +32,17 @@ export const debitCards = pgTable("debit_cards", {
   tags: text("tags").array().notNull().default([]),
 });
 
+export const bankAccounts = pgTable("bank_accounts", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  bankName: text("bank_name").notNull(),
+  accountNumber: text("account_number").notNull(),
+  customerId: text("customer_id"),
+  ifscCode: text("ifsc_code").notNull(),
+  netBankingPassword: text("net_banking_password"),
+  mpin: text("mpin"),
+});
+
 export const cardNetworks = ["Visa", "Mastercard", "Rupay", "American Express"] as const;
 export const bankIssuers = [
   "Axis Bank",
@@ -96,6 +107,27 @@ const cardValidationSchema = cardFormSchema.refine(
   }
 );
 
+// Bank account schema with validation
+export const insertBankAccountSchema = z.object({
+  bankName: z.enum(bankIssuers, {
+    required_error: "Please select a bank",
+  }),
+  accountNumber: z.string()
+    .min(1, "Account number is required")
+    .regex(/^\d+$/, "Account number must contain only digits")
+    .min(8, "Account number must be at least 8 digits")
+    .max(18, "Account number must not exceed 18 digits"),
+  customerId: z.string().optional(),
+  ifscCode: z.string()
+    .min(1, "IFSC code is required")
+    .regex(/^[A-Z]{4}0[A-Z0-9]{6}$/, "Invalid IFSC code format"),
+  netBankingPassword: z.string().optional(),
+  mpin: z.string()
+    .regex(/^\d*$/, "mPIN must contain only digits")
+    .max(6, "mPIN must not exceed 6 digits")
+    .optional(),
+});
+
 export const insertCreditCardSchema = cardValidationSchema;
 export const insertDebitCardSchema = cardValidationSchema;
 
@@ -103,5 +135,7 @@ export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 export type CreditCard = typeof creditCards.$inferSelect;
 export type DebitCard = typeof debitCards.$inferSelect;
+export type BankAccount = typeof bankAccounts.$inferSelect;
 export type InsertCreditCard = z.infer<typeof insertCreditCardSchema>;
 export type InsertDebitCard = z.infer<typeof insertDebitCardSchema>;
+export type InsertBankAccount = z.infer<typeof insertBankAccountSchema>;

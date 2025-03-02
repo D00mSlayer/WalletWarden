@@ -1,4 +1,4 @@
-import { User, InsertUser, CreditCard, InsertCreditCard, DebitCard, InsertDebitCard } from "@shared/schema";
+import { User, InsertUser, CreditCard, InsertCreditCard, DebitCard, InsertDebitCard, BankAccount, InsertBankAccount } from "@shared/schema";
 import session from "express-session";
 import createMemoryStore from "memorystore";
 
@@ -21,6 +21,12 @@ export interface IStorage {
   updateDebitCard(id: number, card: InsertDebitCard): Promise<DebitCard>;
   deleteDebitCard(id: number): Promise<void>;
 
+  getBankAccounts(userId: number): Promise<BankAccount[]>;
+  getBankAccount(id: number): Promise<BankAccount | undefined>;
+  createBankAccount(userId: number, account: InsertBankAccount): Promise<BankAccount>;
+  updateBankAccount(id: number, account: InsertBankAccount): Promise<BankAccount>;
+  deleteBankAccount(id: number): Promise<void>;
+
   sessionStore: session.Store;
 }
 
@@ -28,16 +34,20 @@ export class MemStorage implements IStorage {
   private users: Map<number, User>;
   private creditCards: Map<number, CreditCard>;
   private debitCards: Map<number, DebitCard>;
+  private bankAccounts: Map<number, BankAccount>;
   private currentUserId: number;
   private currentCardId: number;
+  private currentAccountId: number;
   sessionStore: session.Store;
 
   constructor() {
     this.users = new Map();
     this.creditCards = new Map();
     this.debitCards = new Map();
+    this.bankAccounts = new Map();
     this.currentUserId = 1;
     this.currentCardId = 1;
+    this.currentAccountId = 1;
     this.sessionStore = new MemoryStore({
       checkPeriod: 86400000,
     });
@@ -118,6 +128,36 @@ export class MemStorage implements IStorage {
 
   async deleteDebitCard(id: number): Promise<void> {
     this.debitCards.delete(id);
+  }
+
+  async getBankAccounts(userId: number): Promise<BankAccount[]> {
+    return Array.from(this.bankAccounts.values()).filter(
+      (account) => account.userId === userId,
+    );
+  }
+
+  async getBankAccount(id: number): Promise<BankAccount | undefined> {
+    return this.bankAccounts.get(id);
+  }
+
+  async createBankAccount(userId: number, account: InsertBankAccount): Promise<BankAccount> {
+    const id = this.currentAccountId++;
+    const bankAccount: BankAccount = { ...account, id, userId };
+    this.bankAccounts.set(id, bankAccount);
+    return bankAccount;
+  }
+
+  async updateBankAccount(id: number, account: InsertBankAccount): Promise<BankAccount> {
+    const existing = await this.getBankAccount(id);
+    if (!existing) throw new Error("Bank account not found");
+
+    const updated: BankAccount = { ...account, id, userId: existing.userId };
+    this.bankAccounts.set(id, updated);
+    return updated;
+  }
+
+  async deleteBankAccount(id: number): Promise<void> {
+    this.bankAccounts.delete(id);
   }
 }
 
