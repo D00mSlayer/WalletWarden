@@ -10,6 +10,7 @@ import {
   DialogTitle,
   DialogTrigger,
   DialogFooter,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import {
   Select,
@@ -665,6 +666,9 @@ export default function Expenses() {
               <DialogContent>
                 <DialogHeader>
                   <DialogTitle>Filter Expenses</DialogTitle>
+                  <DialogDescription>
+                    Filter your expenses by category, payment source, and payment method
+                  </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4">
                   <div>
@@ -740,6 +744,9 @@ export default function Expenses() {
               <DialogContent>
                 <DialogHeader>
                   <DialogTitle>Add Expense</DialogTitle>
+                  <DialogDescription>
+                    Add a new expense with details including amount, category, and payment information
+                  </DialogDescription>
                 </DialogHeader>
                 <ExpenseForm
                   onSubmit={(data: any) => addExpenseMutation.mutate(data)}
