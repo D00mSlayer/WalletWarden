@@ -50,7 +50,6 @@ import {
   IndianRupee,
   Calendar,
   Users,
-  User
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "wouter";
@@ -122,20 +121,23 @@ function ExpenseForm({ onSubmit, defaultValues, onCancel }: any) {
           return;
         }
 
-        data.isSharedExpense = true;
-        data.shares = shares;
-        data.paidBy = undefined;
-        data.payerName = undefined;
-        data.paymentMethod = undefined;
+        await onSubmit({
+          ...data,
+          amount: Number(data.amount),
+          isSharedExpense: true,
+          shares: shares,
+          paidBy: undefined,
+          payerName: undefined,
+          paymentMethod: undefined,
+        });
       } else {
-        data.isSharedExpense = false;
-        data.shares = undefined;
+        await onSubmit({
+          ...data,
+          amount: Number(data.amount),
+          isSharedExpense: false,
+          shares: undefined,
+        });
       }
-
-      await onSubmit({
-        ...data,
-        amount: Number(data.amount),
-      });
     } catch (error) {
       console.error("Form submission error:", error);
     }
@@ -143,13 +145,13 @@ function ExpenseForm({ onSubmit, defaultValues, onCancel }: any) {
 
   return (
     <form onSubmit={form.handleSubmit(handleSubmit)}>
-      <div className="space-y-4 max-h-[calc(80vh-8rem)] overflow-y-auto pr-4">
+      <div className="space-y-4 max-h-[calc(80vh-8rem)] overflow-y-auto px-4">
         <div>
           <Label htmlFor="date">Date</Label>
           <Input
             id="date"
             type="date"
-            className="focus:ring-2 focus:ring-primary"
+            className="mt-1.5"
             {...form.register("date")}
           />
         </div>
@@ -160,7 +162,7 @@ function ExpenseForm({ onSubmit, defaultValues, onCancel }: any) {
             value={form.watch("category")}
             onValueChange={(value) => form.setValue("category", value, { shouldValidate: true })}
           >
-            <SelectTrigger>
+            <SelectTrigger className="mt-1.5">
               <SelectValue placeholder="Select category" />
             </SelectTrigger>
             <SelectContent>
@@ -172,13 +174,13 @@ function ExpenseForm({ onSubmit, defaultValues, onCancel }: any) {
             </SelectContent>
           </Select>
           {form.formState.errors.category && (
-            <p className="text-sm text-red-500">{form.formState.errors.category.message as string}</p>
+            <p className="text-sm text-red-500 mt-1">{form.formState.errors.category.message as string}</p>
           )}
         </div>
 
         <div>
           <Label htmlFor="amount">Amount</Label>
-          <div className="relative">
+          <div className="relative mt-1.5">
             <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
             <Input
               id="amount"
@@ -189,7 +191,7 @@ function ExpenseForm({ onSubmit, defaultValues, onCancel }: any) {
             />
           </div>
           {form.formState.errors.amount && (
-            <p className="text-sm text-red-500">{form.formState.errors.amount.message as string}</p>
+            <p className="text-sm text-red-500 mt-1">{form.formState.errors.amount.message as string}</p>
           )}
         </div>
 
@@ -214,7 +216,6 @@ function ExpenseForm({ onSubmit, defaultValues, onCancel }: any) {
         </div>
 
         {!isSharedExpense ? (
-          // Individual expense form
           <>
             <div>
               <Label htmlFor="paidBy">Paid By</Label>
@@ -227,7 +228,7 @@ function ExpenseForm({ onSubmit, defaultValues, onCancel }: any) {
                   }
                 }}
               >
-                <SelectTrigger>
+                <SelectTrigger className="mt-1.5">
                   <SelectValue placeholder="Select who paid" />
                 </SelectTrigger>
                 <SelectContent>
@@ -239,7 +240,7 @@ function ExpenseForm({ onSubmit, defaultValues, onCancel }: any) {
                 </SelectContent>
               </Select>
               {form.formState.errors.paidBy && (
-                <p className="text-sm text-red-500">{form.formState.errors.paidBy.message as string}</p>
+                <p className="text-sm text-red-500 mt-1">{form.formState.errors.paidBy.message as string}</p>
               )}
             </div>
 
@@ -248,10 +249,11 @@ function ExpenseForm({ onSubmit, defaultValues, onCancel }: any) {
                 <Label htmlFor="payerName">Person Name</Label>
                 <Input
                   id="payerName"
+                  className="mt-1.5"
                   {...form.register("payerName")}
                 />
                 {form.formState.errors.payerName && (
-                  <p className="text-sm text-red-500">{form.formState.errors.payerName.message as string}</p>
+                  <p className="text-sm text-red-500 mt-1">{form.formState.errors.payerName.message as string}</p>
                 )}
               </div>
             )}
@@ -262,7 +264,7 @@ function ExpenseForm({ onSubmit, defaultValues, onCancel }: any) {
                 value={form.watch("paymentMethod")}
                 onValueChange={(value) => form.setValue("paymentMethod", value, { shouldValidate: true })}
               >
-                <SelectTrigger>
+                <SelectTrigger className="mt-1.5">
                   <SelectValue placeholder="Select payment method" />
                 </SelectTrigger>
                 <SelectContent>
@@ -274,12 +276,11 @@ function ExpenseForm({ onSubmit, defaultValues, onCancel }: any) {
                 </SelectContent>
               </Select>
               {form.formState.errors.paymentMethod && (
-                <p className="text-sm text-red-500">{form.formState.errors.paymentMethod.message as string}</p>
+                <p className="text-sm text-red-500 mt-1">{form.formState.errors.paymentMethod.message as string}</p>
               )}
             </div>
           </>
         ) : (
-          // Shared expense form
           <div className="space-y-4 border rounded-lg p-4">
             <div className="flex justify-between items-center">
               <div className="flex items-center gap-2">
@@ -309,7 +310,7 @@ function ExpenseForm({ onSubmit, defaultValues, onCancel }: any) {
                             }
                           }}
                         >
-                          <SelectTrigger>
+                          <SelectTrigger className="mt-1.5">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
@@ -326,6 +327,7 @@ function ExpenseForm({ onSubmit, defaultValues, onCancel }: any) {
                         <div>
                           <Label>Person Name</Label>
                           <Input
+                            className="mt-1.5"
                             value={share.payerName || ""}
                             onChange={(e) => updateShare(index, "payerName", e.target.value)}
                             placeholder="Enter person name"
@@ -335,7 +337,7 @@ function ExpenseForm({ onSubmit, defaultValues, onCancel }: any) {
 
                       <div>
                         <Label>Amount</Label>
-                        <div className="relative">
+                        <div className="relative mt-1.5">
                           <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
                           <Input
                             type="number"
@@ -355,7 +357,7 @@ function ExpenseForm({ onSubmit, defaultValues, onCancel }: any) {
                             updateShare(index, "paymentMethod", value)
                           }
                         >
-                          <SelectTrigger>
+                          <SelectTrigger className="mt-1.5">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
@@ -398,6 +400,7 @@ function ExpenseForm({ onSubmit, defaultValues, onCancel }: any) {
           <Label htmlFor="description">Description (Optional)</Label>
           <Textarea
             id="description"
+            className="mt-1.5"
             {...form.register("description")}
           />
         </div>
