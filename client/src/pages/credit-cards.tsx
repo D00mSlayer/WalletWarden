@@ -344,78 +344,73 @@ function CreditCardItem({ card, onUpdate, onDelete }: any) {
   };
 
   return (
-    <Card className={`relative overflow-hidden bg-gradient-to-br ${gradient} text-white h-56`}>
-      <CardHeader className="flex flex-row items-start justify-between pb-2">
-        <div className="flex-1">
-          <CardTitle className="text-lg font-normal">{card.issuer}</CardTitle>
+    <Card className={`relative overflow-hidden bg-gradient-to-br ${gradient} text-white`}>
+      <CardHeader className="flex flex-row items-start justify-between pb-8">
+        <div>
+          <CardTitle className="text-lg font-normal mb-1">{card.cardName}</CardTitle>
+          <div className="text-xs opacity-75">{card.issuer}</div>
         </div>
-        <div className="flex items-center gap-4">
-          {getCardIcon(card.cardNetwork)}
-          <div className="flex gap-2">
-            <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
-              <DialogTrigger asChild>
-                <Button variant="ghost" size="icon" className="text-white hover:text-white/80">
-                  <Pencil className="h-4 w-4" />
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Edit Credit Card</DialogTitle>
-                </DialogHeader>
-                <CardForm onSubmit={handleUpdate} defaultValues={card} />
-              </DialogContent>
-            </Dialog>
+        <div className="flex gap-2">
+          <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
+            <DialogTrigger asChild>
+              <Button variant="ghost" size="icon" className="text-white hover:text-white/80">
+                <Pencil className="h-4 w-4" />
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Edit Credit Card</DialogTitle>
+              </DialogHeader>
+              <CardForm onSubmit={handleUpdate} defaultValues={card} />
+            </DialogContent>
+          </Dialog>
 
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="text-white hover:text-white/80"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Delete Credit Card</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    Are you sure you want to delete this credit card? This action cannot be undone.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction onClick={onDelete}>Delete</AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          </div>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="text-white hover:text-white/80"
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Delete Credit Card</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Are you sure you want to delete this credit card? This action cannot be undone.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={onDelete}>Delete</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
       </CardHeader>
-
-      <CardContent className="flex flex-col justify-between h-full pt-0">
-        <div className="flex-1 flex items-center justify-center">
-          <button
-            className="text-2xl font-mono focus:outline-none transition-opacity hover:opacity-80"
-            onClick={() => setShowFullNumber(!showFullNumber)}
-            onContextMenu={(e) => {
-              e.preventDefault();
-              copyCardNumber();
-            }}
-            title={showFullNumber ? "Press and hold to copy, click to hide" : "Click to view full number"}
-          >
-            {formatCardNumber(card.cardNumber, card.cardNetwork, showFullNumber)}
-          </button>
-        </div>
-
-        <div className="flex items-end justify-between mt-4">
-          <div className="space-y-1">
-            <div className="text-xs opacity-75">CARD NAME</div>
-            <div className="font-medium">{card.cardName}</div>
-          </div>
-          <div>
-            <div className="text-xs opacity-75">VALID THRU</div>
-            <div className="font-medium text-right">{card.expiryDate}</div>
+      <CardContent>
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <button
+                className="text-xl font-mono focus:outline-none transition-opacity hover:opacity-80"
+                onClick={() => setShowFullNumber(!showFullNumber)}
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  copyCardNumber();
+                }}
+                title={showFullNumber ? "Press and hold to copy, click to hide" : "Click to view full number"}
+              >
+                {formatCardNumber(card.cardNumber, card.cardNetwork, showFullNumber)}
+              </button>
+              {getCardIcon(card.cardNetwork)}
+            </div>
+            <div className="text-sm">
+              <div className="opacity-75 text-xs mb-1">Expires</div>
+              {card.expiryDate}
+            </div>
           </div>
         </div>
       </CardContent>
