@@ -101,6 +101,9 @@ function ExpenseForm({ onSubmit, defaultValues, onCancel }: any) {
 
   const handleSubmit = async (data: any) => {
     try {
+      console.log("Form submission data:", data);
+      console.log("Current shares state:", shares);
+
       if (isSharedExpense) {
         if (shares.length === 0) {
           toast({
@@ -112,6 +115,8 @@ function ExpenseForm({ onSubmit, defaultValues, onCancel }: any) {
         }
 
         const totalShares = shares.reduce((sum, share) => sum + share.amount, 0);
+        console.log("Total shares:", totalShares, "Amount:", Number(data.amount));
+
         if (Math.abs(totalShares - Number(data.amount)) > 0.01) {
           toast({
             title: "Error",
@@ -141,14 +146,16 @@ function ExpenseForm({ onSubmit, defaultValues, onCancel }: any) {
           }
         }
 
-        await onSubmit({
+        const formattedData = {
           category: data.category,
           amount: Number(data.amount),
           date: data.date,
           description: data.description,
           isSharedExpense: true,
-          shares: shares,
-        });
+          shares: shares
+        };
+        console.log("Submitting shared expense:", formattedData);
+        await onSubmit(formattedData);
       } else {
         if (data.paidBy === "Other" && !data.payerName) {
           toast({
@@ -159,7 +166,7 @@ function ExpenseForm({ onSubmit, defaultValues, onCancel }: any) {
           return;
         }
 
-        await onSubmit({
+        const formattedData = {
           category: data.category,
           amount: Number(data.amount),
           date: data.date,
@@ -168,7 +175,9 @@ function ExpenseForm({ onSubmit, defaultValues, onCancel }: any) {
           paidBy: data.paidBy,
           payerName: data.payerName,
           paymentMethod: data.paymentMethod,
-        });
+        };
+        console.log("Submitting individual expense:", formattedData);
+        await onSubmit(formattedData);
       }
     } catch (error) {
       console.error("Form submission error:", error);
@@ -182,7 +191,7 @@ function ExpenseForm({ onSubmit, defaultValues, onCancel }: any) {
 
   return (
     <form onSubmit={form.handleSubmit(handleSubmit)}>
-      <div className="space-y-4 max-h-[calc(80vh-8rem)] overflow-y-auto px-4">
+      <div className="space-y-4 max-h-[calc(80vh-8rem)] overflow-y-auto px-4 pb-4">
         <div>
           <Label htmlFor="date">Date</Label>
           <Input
@@ -562,12 +571,19 @@ export default function Expenses() {
   const addExpenseMutation = useMutation({
     mutationFn: async (data: any) => {
       try {
+        console.log("Mutation request data:", data);
         const res = await apiRequest("POST", "/api/business/expenses", data);
+        console.log("API response status:", res.status);
+
         if (!res.ok) {
           const errorData = await res.json();
+          console.error("API error response:", errorData);
           throw new Error(errorData.message || "Failed to add expense");
         }
-        return await res.json();
+
+        const responseData = await res.json();
+        console.log("API success response:", responseData);
+        return responseData;
       } catch (error: any) {
         console.error("Mutation error:", error);
         throw new Error(error.message || "Failed to add expense");
@@ -579,6 +595,7 @@ export default function Expenses() {
       setIsOpen(false);
     },
     onError: (error: Error) => {
+      console.error("Mutation onError:", error);
       toast({
         title: "Failed to add expense",
         description: error.message,
