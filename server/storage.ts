@@ -1,4 +1,4 @@
-import { User, InsertUser, CreditCard, InsertCreditCard, DebitCard, InsertDebitCard, BankAccount, InsertBankAccount, Loan, InsertLoan, Repayment, InsertRepayment, Password, InsertPassword, CustomerCredit, InsertCustomerCredit } from "@shared/schema";
+import { User, InsertUser, CreditCard, InsertCreditCard, DebitCard, InsertDebitCard, BankAccount, InsertBankAccount, Loan, InsertLoan, Repayment, InsertRepayment, Password, InsertPassword, CustomerCredit, InsertCustomerCredit, DailySales, InsertDailySales, Expense, InsertExpense } from "@shared/schema";
 import session from "express-session";
 import createMemoryStore from "memorystore";
 
@@ -50,6 +50,14 @@ export interface IStorage {
   createCustomerCredit(userId: number, credit: InsertCustomerCredit): Promise<CustomerCredit>;
   markCustomerCreditPaid(id: number): Promise<CustomerCredit>;
   deleteCustomerCredit(id: number): Promise<void>;
+
+  // Daily Sales methods
+  getDailySales(userId: number): Promise<DailySales[]>;
+  getDailySalesById(id: number): Promise<DailySales | undefined>;
+  createDailySales(userId: number, sales: InsertDailySales): Promise<DailySales>;
+  updateDailySales(id: number, sales: InsertDailySales): Promise<DailySales>;
+  deleteDailySales(id: number): Promise<void>;
+
   getExpenses(userId: number): Promise<Expense[]>;
   getExpense(id: number): Promise<Expense | undefined>;
   createExpense(userId: number, expense: InsertExpense): Promise<Expense>;
@@ -65,6 +73,7 @@ export class MemStorage implements IStorage {
   private repayments: Map<number, Repayment>;
   private passwords: Map<number, Password>;
   private customerCredits: Map<number, CustomerCredit>;
+  private dailySales: Map<number, DailySales>;
   private expenses: Map<number, Expense>;
   private currentUserId: number;
   private currentCardId: number;
@@ -73,6 +82,7 @@ export class MemStorage implements IStorage {
   private currentRepaymentId: number;
   private currentPasswordId: number;
   private currentCustomerCreditId: number;
+  private currentDailySalesId: number;
   private currentExpenseId: number;
   sessionStore: session.Store;
 
@@ -85,6 +95,7 @@ export class MemStorage implements IStorage {
     this.repayments = new Map();
     this.passwords = new Map();
     this.customerCredits = new Map();
+    this.dailySales = new Map();
     this.expenses = new Map();
     this.currentUserId = 1;
     this.currentCardId = 1;
@@ -93,6 +104,7 @@ export class MemStorage implements IStorage {
     this.currentRepaymentId = 1;
     this.currentPasswordId = 1;
     this.currentCustomerCreditId = 1;
+    this.currentDailySalesId = 1;
     this.currentExpenseId = 1;
     this.sessionStore = new MemoryStore({
       checkPeriod: 86400000,
@@ -358,6 +370,60 @@ export class MemStorage implements IStorage {
 
   async deleteCustomerCredit(id: number): Promise<void> {
     this.customerCredits.delete(id);
+  }
+
+  // Daily Sales implementations
+  async getDailySales(userId: number): Promise<DailySales[]> {
+    return Array.from(this.dailySales.values())
+      .filter(sales => sales.userId === userId)
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }
+
+  async getDailySalesById(id: number): Promise<DailySales | undefined> {
+    return this.dailySales.get(id);
+  }
+
+  async createDailySales(userId: number, sales: InsertDailySales): Promise<DailySales> {
+    const id = this.currentDailySalesId++;
+    const totalAmount = Number(sales.cashAmount) + Number(sales.cardAmount) + Number(sales.upiAmount);
+
+    const newSales: DailySales = {
+      id,
+      userId,
+      date: new Date(sales.date),
+      cashAmount: String(sales.cashAmount),
+      cardAmount: String(sales.cardAmount),
+      upiAmount: String(sales.upiAmount),
+      totalAmount: String(totalAmount),
+      notes: sales.notes || "",
+    };
+
+    this.dailySales.set(id, newSales);
+    return newSales;
+  }
+
+  async updateDailySales(id: number, sales: InsertDailySales): Promise<DailySales> {
+    const existing = await this.getDailySalesById(id);
+    if (!existing) throw new Error("Sales record not found");
+
+    const totalAmount = Number(sales.cashAmount) + Number(sales.cardAmount) + Number(sales.upiAmount);
+
+    const updated: DailySales = {
+      ...existing,
+      date: new Date(sales.date),
+      cashAmount: String(sales.cashAmount),
+      cardAmount: String(sales.cardAmount),
+      upiAmount: String(sales.upiAmount),
+      totalAmount: String(totalAmount),
+      notes: sales.notes || "",
+    };
+
+    this.dailySales.set(id, updated);
+    return updated;
+  }
+
+  async deleteDailySales(id: number): Promise<void> {
+    this.dailySales.delete(id);
   }
 
   async getExpenses(userId: number): Promise<Expense[]> {

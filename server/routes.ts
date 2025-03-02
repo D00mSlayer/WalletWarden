@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { setupAuth } from "./auth";
 import { storage } from "./storage";
 import { insertCreditCardSchema, insertDebitCardSchema, insertBankAccountSchema, insertLoanSchema, insertRepaymentSchema, insertPasswordSchema, insertCustomerCreditSchema, insertExpenseSchema } from "@shared/schema";
-import {insertDailySalesSchema} from "@shared/schema"; // Assuming this schema exists
+import {insertDailySalesSchema} from "@shared/schema"; 
 
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -320,9 +320,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(400).json(parsed.error);
     }
 
-    const sales = await storage.createDailySales(req.user.id, parsed.data);
-    console.log("[API] Created daily sales record:", sales);
-    res.status(201).json(sales);
+    try {
+      const sales = await storage.createDailySales(req.user.id, parsed.data);
+      console.log("[API] Created daily sales record:", sales);
+      res.status(201).json(sales);
+    } catch (error) {
+      console.error("[API] Error creating sales record:", error);
+      res.status(500).json({ message: "Failed to create sales record" });
+    }
   });
 
   app.patch("/api/business/sales/:id", async (req, res) => {
@@ -334,24 +339,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(400).json(parsed.error);
     }
 
-    const sales = await storage.getDailySales(parseInt(req.params.id));
-    if (!sales || sales.userId !== req.user.id) return res.sendStatus(404);
+    try {
+      const sales = await storage.getDailySalesById(parseInt(req.params.id));
+      if (!sales || sales.userId !== req.user.id) return res.sendStatus(404);
 
-    const updated = await storage.updateDailySales(sales.id, parsed.data);
-    console.log("[API] Updated daily sales record:", updated);
-    res.json(updated);
+      const updated = await storage.updateDailySales(sales.id, parsed.data);
+      console.log("[API] Updated daily sales record:", updated);
+      res.json(updated);
+    } catch (error) {
+      console.error("[API] Error updating sales record:", error);
+      res.status(500).json({ message: "Failed to update sales record" });
+    }
   });
 
   app.delete("/api/business/sales/:id", async (req, res) => {
     if (!req.isAuthenticated()) return res.sendStatus(401);
     console.log("[API] Deleting daily sales record:", req.params.id);
 
-    const sales = await storage.getDailySales(parseInt(req.params.id));
-    if (!sales || sales.userId !== req.user.id) return res.sendStatus(404);
+    try {
+      const sales = await storage.getDailySalesById(parseInt(req.params.id));
+      if (!sales || sales.userId !== req.user.id) return res.sendStatus(404);
 
-    await storage.deleteDailySales(sales.id);
-    console.log("[API] Deleted daily sales record:", req.params.id);
-    res.sendStatus(204);
+      await storage.deleteDailySales(sales.id);
+      console.log("[API] Deleted daily sales record:", req.params.id);
+      res.sendStatus(204);
+    } catch (error) {
+      console.error("[API] Error deleting sales record:", error);
+      res.status(500).json({ message: "Failed to delete sales record" });
+    }
   });
 
   const httpServer = createServer(app);
