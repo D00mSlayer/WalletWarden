@@ -68,7 +68,16 @@ function ExpenseForm({ onSubmit, defaultValues, onCancel }: any) {
   const paidBy = form.watch("paidBy");
   const [isSharedExpense, setIsSharedExpense] = useState(false);
 
-  // Update shares when amount changes or shared status changes
+  // Effect to handle shared expense changes
+  useEffect(() => {
+    if (isSharedExpense) {
+      // Clear paid by when switching to shared expense
+      form.setValue("paidBy", "", { shouldValidate: true });
+      form.setValue("otherPerson", "", { shouldValidate: true });
+    }
+  }, [isSharedExpense]);
+
+  // Effect to handle amount changes
   useEffect(() => {
     if (amount) {
       const numAmount = Number(amount);
@@ -82,7 +91,7 @@ function ExpenseForm({ onSubmit, defaultValues, onCancel }: any) {
           form.setValue("personalShare", numAmount, { shouldValidate: true });
           form.setValue("businessShare", 0, { shouldValidate: true });
           form.setValue("otherShare", 0, { shouldValidate: true });
-        } else {
+        } else if (paidBy === "Other") {
           form.setValue("otherShare", numAmount, { shouldValidate: true });
           form.setValue("businessShare", 0, { shouldValidate: true });
           form.setValue("personalShare", 0, { shouldValidate: true });
@@ -111,6 +120,7 @@ function ExpenseForm({ onSubmit, defaultValues, onCancel }: any) {
             <Input
               id="date"
               type="date"
+              className="focus:border-l-primary"
               {...form.register("date")}
             />
           </div>
@@ -121,7 +131,7 @@ function ExpenseForm({ onSubmit, defaultValues, onCancel }: any) {
               value={form.watch("category")}
               onValueChange={(value) => form.setValue("category", value, { shouldValidate: true })}
             >
-              <SelectTrigger>
+              <SelectTrigger className="focus:border-l-primary">
                 <SelectValue placeholder="Select category" />
               </SelectTrigger>
               <SelectContent>
@@ -145,7 +155,7 @@ function ExpenseForm({ onSubmit, defaultValues, onCancel }: any) {
                 id="amount"
                 type="number"
                 step="0.01"
-                className="pl-10"
+                className="pl-10 focus:border-l-primary"
                 {...form.register("amount", { valueAsNumber: true })}
               />
             </div>
@@ -154,39 +164,55 @@ function ExpenseForm({ onSubmit, defaultValues, onCancel }: any) {
             )}
           </div>
 
-          <div>
-            <Label htmlFor="paidBy">Paid By</Label>
-            <Select
-              value={form.watch("paidBy")}
-              onValueChange={(value) => form.setValue("paidBy", value, { shouldValidate: true })}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select who paid" />
-              </SelectTrigger>
-              <SelectContent>
-                {paymentSources.map((source) => (
-                  <SelectItem key={source} value={source}>
-                    {source}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {form.formState.errors.paidBy && (
-              <p className="text-sm text-red-500">{form.formState.errors.paidBy.message as string}</p>
-            )}
+          <div className="flex items-center space-x-2">
+            <input
+              type="checkbox"
+              id="isShared"
+              checked={isSharedExpense}
+              onChange={(e) => setIsSharedExpense(e.target.checked)}
+              className="rounded border-gray-300 text-primary focus:ring-primary"
+            />
+            <Label htmlFor="isShared">This is a shared expense</Label>
           </div>
 
-          {paidBy === "Other" && (
-            <div>
-              <Label htmlFor="otherPerson">Person Name</Label>
-              <Input
-                id="otherPerson"
-                {...form.register("otherPerson")}
-              />
-              {form.formState.errors.otherPerson && (
-                <p className="text-sm text-red-500">{form.formState.errors.otherPerson.message as string}</p>
+          {!isSharedExpense && (
+            <>
+              <div>
+                <Label htmlFor="paidBy">Paid By</Label>
+                <Select
+                  value={form.watch("paidBy")}
+                  onValueChange={(value) => form.setValue("paidBy", value, { shouldValidate: true })}
+                >
+                  <SelectTrigger className="focus:border-l-primary">
+                    <SelectValue placeholder="Select who paid" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {paymentSources.map((source) => (
+                      <SelectItem key={source} value={source}>
+                        {source}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {form.formState.errors.paidBy && (
+                  <p className="text-sm text-red-500">{form.formState.errors.paidBy.message as string}</p>
+                )}
+              </div>
+
+              {paidBy === "Other" && (
+                <div>
+                  <Label htmlFor="otherPerson">Person Name</Label>
+                  <Input
+                    id="otherPerson"
+                    className="focus:border-l-primary"
+                    {...form.register("otherPerson")}
+                  />
+                  {form.formState.errors.otherPerson && (
+                    <p className="text-sm text-red-500">{form.formState.errors.otherPerson.message as string}</p>
+                  )}
+                </div>
               )}
-            </div>
+            </>
           )}
 
           <div>
@@ -195,7 +221,7 @@ function ExpenseForm({ onSubmit, defaultValues, onCancel }: any) {
               value={form.watch("paymentMethod")}
               onValueChange={(value) => form.setValue("paymentMethod", value, { shouldValidate: true })}
             >
-              <SelectTrigger>
+              <SelectTrigger className="focus:border-l-primary">
                 <SelectValue placeholder="Select payment method" />
               </SelectTrigger>
               <SelectContent>
@@ -215,19 +241,9 @@ function ExpenseForm({ onSubmit, defaultValues, onCancel }: any) {
             <Label htmlFor="description">Description (Optional)</Label>
             <Textarea
               id="description"
+              className="focus:border-l-primary"
               {...form.register("description")}
             />
-          </div>
-
-          <div className="flex items-center space-x-2">
-            <input
-              type="checkbox"
-              id="isShared"
-              checked={isSharedExpense}
-              onChange={(e) => setIsSharedExpense(e.target.checked)}
-              className="rounded border-gray-300 text-primary focus:ring-primary"
-            />
-            <Label htmlFor="isShared">This is a shared expense</Label>
           </div>
 
           {isSharedExpense && (
@@ -242,7 +258,7 @@ function ExpenseForm({ onSubmit, defaultValues, onCancel }: any) {
                     id="businessShare"
                     type="number"
                     step="0.01"
-                    className="pl-10"
+                    className="pl-10 focus:border-l-primary"
                     {...form.register("businessShare", { valueAsNumber: true })}
                   />
                 </div>
@@ -259,7 +275,7 @@ function ExpenseForm({ onSubmit, defaultValues, onCancel }: any) {
                     id="personalShare"
                     type="number"
                     step="0.01"
-                    className="pl-10"
+                    className="pl-10 focus:border-l-primary"
                     {...form.register("personalShare", { valueAsNumber: true })}
                   />
                 </div>
@@ -276,7 +292,7 @@ function ExpenseForm({ onSubmit, defaultValues, onCancel }: any) {
                     id="otherShare"
                     type="number"
                     step="0.01"
-                    className="pl-10"
+                    className="pl-10 focus:border-l-primary"
                     {...form.register("otherShare", { valueAsNumber: true })}
                   />
                 </div>
@@ -577,8 +593,8 @@ export default function Expenses() {
                 <DialogHeader>
                   <DialogTitle>Add Expense</DialogTitle>
                 </DialogHeader>
-                <ExpenseForm 
-                  onSubmit={(data: any) => addExpenseMutation.mutate(data)} 
+                <ExpenseForm
+                  onSubmit={(data: any) => addExpenseMutation.mutate(data)}
                   onCancel={() => setIsOpen(false)}
                 />
               </DialogContent>
