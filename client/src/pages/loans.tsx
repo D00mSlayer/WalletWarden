@@ -211,6 +211,18 @@ function LoanCard({ loan, onUpdate, onComplete, onDelete }: any) {
   const totalRepaid = repayments.reduce((sum, repayment) => sum + Number(repayment.amount), 0);
   const remainingAmount = Number(loan.amount) - totalRepaid;
 
+  const handleComplete = async () => {
+    if (remainingAmount > 0) {
+      // Add final repayment for the remaining amount
+      await createRepaymentMutation.mutateAsync({
+        amount: remainingAmount,
+        note: "Final repayment on loan completion",
+        date: new Date().toISOString().split('T')[0],
+      });
+    }
+    onComplete();
+  };
+
   const handleUpdate = async (data: any) => {
     await onUpdate(data);
     setIsEditOpen(false);
@@ -279,15 +291,15 @@ function LoanCard({ loan, onUpdate, onComplete, onDelete }: any) {
                   <AlertDialogDescription>
                     Are you sure you want to mark this loan as completed?
                     {remainingAmount > 0 && (
-                      <div className="mt-2 text-destructive">
-                        Warning: There is still ₹{remainingAmount} remaining to be paid.
+                      <div className="mt-2">
+                        A final repayment of ₹{remainingAmount} will be automatically added.
                       </div>
                     )}
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                   <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction onClick={onComplete}>Complete</AlertDialogAction>
+                  <AlertDialogAction onClick={handleComplete}>Complete</AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
