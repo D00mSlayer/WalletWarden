@@ -32,22 +32,22 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { 
-  insertExpenseSchema, 
-  expenseCategories, 
-  paymentSources, 
+import {
+  insertExpenseSchema,
+  expenseCategories,
+  paymentSources,
   paymentMethods,
   type Expense,
   type Share
 } from "@shared/schema";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { 
-  Loader2, 
-  PlusCircle, 
+import {
+  Loader2,
+  PlusCircle,
   MinusCircle,
-  Trash2, 
-  IndianRupee, 
+  Trash2,
+  IndianRupee,
   Calendar,
   Users,
   User
@@ -78,12 +78,12 @@ function ExpenseForm({ onSubmit, defaultValues, onCancel }: any) {
   });
 
   const amount = form.watch("amount");
-  const remainingAmount = isSharedExpense ? 
-    Number(amount || 0) - shares.reduce((sum, share) => sum + share.amount, 0) : 
+  const remainingAmount = isSharedExpense ?
+    Number(amount || 0) - shares.reduce((sum, share) => sum + share.amount, 0) :
     0;
 
   const addShare = () => {
-    setShares([...shares, { 
+    setShares([...shares, {
       payerType: "Personal",
       amount: 0,
       paymentMethod: "Cash"
@@ -122,14 +122,12 @@ function ExpenseForm({ onSubmit, defaultValues, onCancel }: any) {
           return;
         }
 
-        // Format shared expense data
         data.isSharedExpense = true;
         data.shares = shares;
         data.paidBy = undefined;
         data.payerName = undefined;
         data.paymentMethod = undefined;
       } else {
-        // Format individual expense data
         data.isSharedExpense = false;
         data.shares = undefined;
       }
@@ -144,8 +142,8 @@ function ExpenseForm({ onSubmit, defaultValues, onCancel }: any) {
   };
 
   return (
-    <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
-      <div className="space-y-4">
+    <form onSubmit={form.handleSubmit(handleSubmit)}>
+      <div className="space-y-4 max-h-[calc(80vh-8rem)] overflow-y-auto pr-4">
         <div>
           <Label htmlFor="date">Date</Label>
           <Input
@@ -353,7 +351,7 @@ function ExpenseForm({ onSubmit, defaultValues, onCancel }: any) {
                         <Label>Payment Method</Label>
                         <Select
                           value={share.paymentMethod}
-                          onValueChange={(value: typeof paymentMethods[number]) => 
+                          onValueChange={(value: typeof paymentMethods[number]) =>
                             updateShare(index, "paymentMethod", value)
                           }
                         >
@@ -405,14 +403,16 @@ function ExpenseForm({ onSubmit, defaultValues, onCancel }: any) {
         </div>
       </div>
 
-      <DialogFooter>
-        <Button variant="outline" type="button" onClick={onCancel}>
-          Cancel
-        </Button>
-        <Button type="submit" disabled={form.formState.isSubmitting}>
-          {defaultValues ? "Update Expense" : "Add Expense"}
-        </Button>
-      </DialogFooter>
+      <div className="pt-4 border-t mt-4">
+        <DialogFooter>
+          <Button variant="outline" type="button" onClick={onCancel}>
+            Cancel
+          </Button>
+          <Button type="submit" disabled={form.formState.isSubmitting}>
+            {defaultValues ? "Update Expense" : "Add Expense"}
+          </Button>
+        </DialogFooter>
+      </div>
     </form>
   );
 }
@@ -539,8 +539,8 @@ export default function Expenses() {
       setIsOpen(false);
     },
     onError: (error: Error) => {
-      toast({ 
-        title: "Failed to add expense", 
+      toast({
+        title: "Failed to add expense",
         description: error.message,
         variant: "destructive"
       });
@@ -557,7 +557,6 @@ export default function Expenses() {
     },
   });
 
-  // Group expenses by category
   const groupedExpenses = expenses?.reduce((groups, expense) => {
     const group = groups[expense.category] || [];
     group.push(expense);
