@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, timestamp, decimal } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, decimal, jsonb } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -103,26 +103,30 @@ export const expenseCategories = [
 ] as const;
 
 export const paymentSources = ["Business", "Personal", "Other"] as const;
-export const expenseShareTypes = ["Personal", "Business", "Other"] as const;
+export const paymentMethods = ["Cash", "UPI", "Card"] as const;
+
+// Define share type for shared expenses
+const shareSchema = z.object({
+  payerType: z.enum(paymentSources),
+  payerName: z.string().optional(), // Required when payerType is "Other"
+  amount: z.number().min(0, "Share amount cannot be negative"),
+  paymentMethod: z.enum(paymentMethods),
+});
 
 export const expenses = pgTable("expenses", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").notNull(),
   category: text("category").notNull(),
   amount: decimal("amount").notNull(),
-  paidBy: text("paid_by").notNull(),
-  otherPerson: text("other_person"),
-  paymentMethod: text("payment_method").notNull(),
   date: timestamp("date").notNull().defaultNow(),
   description: text("description"),
-  // Add breakdown fields
-  personalShare: decimal("personal_share").notNull().default("0"),
-  businessShare: decimal("business_share").notNull().default("0"),
-  otherShare: decimal("other_share").notNull().default("0"),
-  // Add payment methods for each share
-  personalPaymentMethod: text("personal_payment_method"),
-  businessPaymentMethod: text("business_payment_method"),
-  otherPaymentMethod: text("other_payment_method"),
+  isSharedExpense: boolean("is_shared_expense").notNull().default(false),
+  // Fields for individual expense
+  paidBy: text("paid_by"),
+  payerName: text("payer_name"), // When paidBy is "Other"
+  paymentMethod: text("payment_method"),
+  // Fields for shared expense
+  shares: jsonb("shares").array(), // Array of share objects
 });
 
 export const fixedExpenseTypes = ["Salary", "Rent", "Electricity", "Internet", "Water", "Other"] as const;
@@ -139,8 +143,6 @@ export const fixedExpenses = pgTable("fixed_expenses", {
   paidDate: timestamp("paid_date"),
   notes: text("notes"),
 });
-
-export const paymentMethods = ["Cash", "UPI", "Card"] as const;
 
 export const dailySales = pgTable("daily_sales", {
   id: serial("id").primaryKey(),
@@ -238,49 +240,86 @@ export const insertExpenseSchema = z.object({
     required_error: "Please select an expense category",
   }),
   amount: z.number().positive("Amount must be positive"),
-  paidBy: z.enum(paymentSources, {
-    required_error: "Please select who paid for this expense",
-  }),
-  otherPerson: z.string().optional(),
-  paymentMethod: z.enum(paymentMethods, {
-    required_error: "Please select payment method",
-  }),
-  date: z.string().optional(), // Allow custom date input
+  date: z.string().optional(),
   description: z.string().optional(),
-  // Add share amounts
-  personalShare: z.number().min(0, "Personal share cannot be negative"),
-  businessShare: z.number().min(0, "Business share cannot be negative"),
-  otherShare: z.number().min(0, "Other share cannot be negative"),
-  // Add payment methods for shares
-  personalPaymentMethod: z.enum(paymentMethods).optional(),
-  businessPaymentMethod: z.enum(paymentMethods).optional(),
-  otherPaymentMethod: z.enum(paymentMethods).optional(),
-}).refine((data) => {
-  if (data.paidBy === "Other" && !data.otherPerson) {
-    return false;
+  isSharedExpense: z.boolean(),
+  // Individual expense fields
+  paidBy: z.enum(paymentSources).optional(),
+  payerName: z.string().optional(),
+  paymentMethod: z.enum(paymentMethods).optional(),
+  // Shared expense fields
+  shares: z.array(shareSchema).optional(),
+}).superRefine((data, ctx) => {
+  if (data.isSharedExpense) {
+    // Validate shared expense
+    if (!data.shares || data.shares.length === 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "At least one share is required for shared expenses",
+        path: ["shares"],
+      });
+      return;
+    }
+
+    // Validate total shares match amount
+    const totalShares = data.shares.reduce((sum, share) => sum + share.amount, 0);
+    if (Math.abs(totalShares - data.amount) > 0.01) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Total shares must equal the expense amount",
+        path: ["shares"],
+      });
+      return;
+    }
+
+    // Validate payerName for "Other" type shares
+    for (const share of data.shares) {
+      if (share.payerType === "Other" && !share.payerName) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Payer name is required when payer type is Other",
+          path: ["shares"],
+        });
+        return;
+      }
+    }
+
+    // Clear individual expense fields
+    data.paidBy = undefined;
+    data.payerName = undefined;
+    data.paymentMethod = undefined;
+  } else {
+    // Validate individual expense
+    if (!data.paidBy) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Please select who paid for this expense",
+        path: ["paidBy"],
+      });
+      return;
+    }
+
+    if (!data.paymentMethod) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Please select payment method",
+        path: ["paymentMethod"],
+      });
+      return;
+    }
+
+    if (data.paidBy === "Other" && !data.payerName) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Please specify who paid for the expense",
+        path: ["payerName"],
+      });
+      return;
+    }
+
+    // Clear shared expense fields
+    data.shares = undefined;
   }
-  return true;
-}, {
-  message: "Please specify who paid for the expense",
-  path: ["otherPerson"],
-}).refine((data) => {
-  const total = (data.personalShare || 0) + (data.businessShare || 0) + (data.otherShare || 0);
-  return Math.abs(total - data.amount) < 0.01; // Allow for small floating point differences
-}, {
-  message: "Share amounts must sum up to the total amount",
-}).refine((data) => {
-  const hasPersonalShare = (data.personalShare || 0) > 0;
-  const hasBusinessShare = (data.businessShare || 0) > 0;
-  const hasOtherShare = (data.otherShare || 0) > 0;
-
-  // Check if payment methods are provided for shares that have amounts
-  if (hasPersonalShare && !data.personalPaymentMethod) return false;
-  if (hasBusinessShare && !data.businessPaymentMethod) return false;
-  if (hasOtherShare && !data.otherPaymentMethod) return false;
-
-  return true;
-}, {
-  message: "Please select payment method for each share",
 });
 
 export const insertFixedExpenseSchema = z.object({
@@ -368,3 +407,4 @@ export type FixedExpense = typeof fixedExpenses.$inferSelect;
 export type InsertFixedExpense = z.infer<typeof insertFixedExpenseSchema>;
 export type DailySales = typeof dailySales.$inferSelect;
 export type InsertDailySales = z.infer<typeof insertDailySalesSchema>;
+export type Share = z.infer<typeof shareSchema>;
