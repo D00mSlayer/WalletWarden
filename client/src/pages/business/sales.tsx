@@ -39,9 +39,9 @@ function SalesForm({ onSubmit, defaultValues, onCancel }: any) {
     resolver: zodResolver(insertDailySalesSchema),
     defaultValues: {
       date: defaultValues?.date || format(new Date(), "yyyy-MM-dd"),
-      cashAmount: defaultValues?.cashAmount || 0,
-      cardAmount: defaultValues?.cardAmount || 0,
-      upiAmount: defaultValues?.upiAmount || 0,
+      cashAmount: defaultValues?.cashAmount || "",
+      cardAmount: defaultValues?.cardAmount || "",
+      upiAmount: defaultValues?.upiAmount || "",
       notes: defaultValues?.notes || "",
     },
   });
@@ -57,9 +57,9 @@ function SalesForm({ onSubmit, defaultValues, onCancel }: any) {
     try {
       const formattedData = {
         ...data,
-        cashAmount: Number(data.cashAmount),
-        cardAmount: Number(data.cardAmount),
-        upiAmount: Number(data.upiAmount),
+        cashAmount: Number(data.cashAmount || 0),
+        cardAmount: Number(data.cardAmount || 0),
+        upiAmount: Number(data.upiAmount || 0),
       };
 
       await onSubmit(formattedData);
@@ -94,6 +94,7 @@ function SalesForm({ onSubmit, defaultValues, onCancel }: any) {
               id="cashAmount"
               type="number"
               step="0.01"
+              placeholder="Enter cash amount"
               className="pl-10"
               {...form.register("cashAmount")}
             />
@@ -108,6 +109,7 @@ function SalesForm({ onSubmit, defaultValues, onCancel }: any) {
               id="cardAmount"
               type="number"
               step="0.01"
+              placeholder="Enter card amount"
               className="pl-10"
               {...form.register("cardAmount")}
             />
@@ -122,6 +124,7 @@ function SalesForm({ onSubmit, defaultValues, onCancel }: any) {
               id="upiAmount"
               type="number"
               step="0.01"
+              placeholder="Enter UPI amount"
               className="pl-10"
               {...form.register("upiAmount")}
             />
@@ -140,6 +143,7 @@ function SalesForm({ onSubmit, defaultValues, onCancel }: any) {
           <Input
             id="notes"
             className="mt-1.5"
+            placeholder="Add any notes (optional)"
             {...form.register("notes")}
           />
         </div>
