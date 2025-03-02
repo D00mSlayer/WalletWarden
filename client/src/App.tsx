@@ -13,6 +13,7 @@ import BankAccounts from "@/pages/bank-accounts";
 import Loans from "@/pages/loans";
 import Passwords from "@/pages/passwords";
 import Business from "@/pages/business";
+import CustomerCredits from "@/pages/business/credits";
 
 function Router() {
   return (
@@ -25,6 +26,7 @@ function Router() {
       <ProtectedRoute path="/loans" component={Loans} />
       <ProtectedRoute path="/passwords" component={Passwords} />
       <ProtectedRoute path="/business" component={Business} />
+      <ProtectedRoute path="/business/credits" component={CustomerCredits} />
       <Route component={NotFound} />
     </Switch>
   );
