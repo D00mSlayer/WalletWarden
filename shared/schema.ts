@@ -81,6 +81,69 @@ export const insertUserSchema = createInsertSchema(users).pick({
   password: true,
 });
 
+// Business Schema
+export const customerCredits = pgTable("customer_credits", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  customerName: text("customer_name").notNull(),
+  amount: decimal("amount").notNull(),
+  date: timestamp("date").notNull().defaultNow(),
+  purpose: text("purpose"),
+  status: text("status").notNull().default("pending"), // pending or paid
+  paidDate: timestamp("paid_date"),
+  notes: text("notes"),
+});
+
+export const expenseCategories = [
+  "Inventory",
+  "Marketing",
+  "Packaging",
+  "Transport",
+  "Commission",
+  "Others"
+] as const;
+
+export const paymentSources = ["Business", "Personal", "Other"] as const;
+
+export const expenses = pgTable("expenses", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  category: text("category").notNull(),
+  amount: decimal("amount").notNull(),
+  paidBy: text("paid_by").notNull(),
+  paymentMethod: text("payment_method").notNull(),
+  date: timestamp("date").notNull().defaultNow(),
+  description: text("description"),
+});
+
+export const fixedExpenseTypes = ["Salary", "Rent", "Electricity", "Internet", "Water", "Other"] as const;
+
+export const fixedExpenses = pgTable("fixed_expenses", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  type: text("type").notNull(),
+  amount: decimal("amount").notNull(),
+  paidBy: text("paid_by").notNull(),
+  paymentMethod: text("payment_method").notNull(),
+  dueDate: timestamp("due_date").notNull(),
+  status: text("status").notNull().default("pending"), // pending or paid
+  paidDate: timestamp("paid_date"),
+  notes: text("notes"),
+});
+
+export const paymentMethods = ["Cash", "UPI", "Card"] as const;
+
+export const dailySales = pgTable("daily_sales", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  date: timestamp("date").notNull().defaultNow(),
+  cashAmount: decimal("cash_amount").notNull().default("0"),
+  upiAmount: decimal("upi_amount").notNull().default("0"),
+  cardAmount: decimal("card_amount").notNull().default("0"),
+  totalAmount: decimal("total_amount").notNull(),
+  notes: text("notes"),
+});
+
 const cardFormSchema = z.object({
   cardNetwork: z.enum(cardNetworks, {
     required_error: "Please select a card network",
@@ -154,16 +217,56 @@ export const insertPasswordSchema = z.object({
   notes: z.string().optional(),
 });
 
-export type InsertUser = z.infer<typeof insertUserSchema>;
-export type User = typeof users.$inferSelect;
-export type CreditCard = typeof creditCards.$inferSelect;
-export type DebitCard = typeof debitCards.$inferSelect;
-export type BankAccount = typeof bankAccounts.$inferSelect;
-export type InsertCreditCard = z.infer<typeof insertCreditCardSchema>;
-export type InsertDebitCard = z.infer<typeof insertDebitCardSchema>;
-export type InsertBankAccount = z.infer<typeof insertBankAccountSchema>;
-export type Password = typeof passwords.$inferSelect;
-export type InsertPassword = z.infer<typeof insertPasswordSchema>;
+// Validation Schemas
+export const insertCustomerCreditSchema = z.object({
+  customerName: z.string().min(1, "Customer name is required"),
+  amount: z.number().positive("Amount must be positive"),
+  purpose: z.string().optional(),
+  notes: z.string().optional(),
+});
+
+export const insertExpenseSchema = z.object({
+  category: z.enum(expenseCategories, {
+    required_error: "Please select an expense category",
+  }),
+  amount: z.number().positive("Amount must be positive"),
+  paidBy: z.enum(paymentSources, {
+    required_error: "Please select who paid for this expense",
+  }),
+  paymentMethod: z.enum(paymentMethods, {
+    required_error: "Please select payment method",
+  }),
+  date: z.string().optional(), // Allow custom date input
+  description: z.string().optional(),
+});
+
+export const insertFixedExpenseSchema = z.object({
+  type: z.enum(fixedExpenseTypes, {
+    required_error: "Please select expense type",
+  }),
+  amount: z.number().positive("Amount must be positive"),
+  paidBy: z.enum(paymentSources, {
+    required_error: "Please select who paid for this expense",
+  }),
+  paymentMethod: z.enum(paymentMethods, {
+    required_error: "Please select payment method",
+  }),
+  dueDate: z.string().min(1, "Due date is required"),
+  notes: z.string().optional(),
+});
+
+export const insertDailySalesSchema = z.object({
+  date: z.string().min(1, "Date is required"),
+  cashAmount: z.number().min(0, "Cash amount cannot be negative"),
+  upiAmount: z.number().min(0, "UPI amount cannot be negative"),
+  cardAmount: z.number().min(0, "Card amount cannot be negative"),
+  notes: z.string().optional(),
+}).refine(data => {
+  const total = data.cashAmount + data.upiAmount + data.cardAmount;
+  return total > 0;
+}, {
+  message: "At least one payment method must have a value greater than 0",
+});
 
 export const loans = pgTable("loans", {
   id: serial("id").primaryKey(),
@@ -200,7 +303,25 @@ export const insertRepaymentSchema = z.object({
   date: z.string().optional(), // Allow custom date input
 });
 
+export type InsertUser = z.infer<typeof insertUserSchema>;
+export type User = typeof users.$inferSelect;
+export type CreditCard = typeof creditCards.$inferSelect;
+export type DebitCard = typeof debitCards.$inferSelect;
+export type BankAccount = typeof bankAccounts.$inferSelect;
+export type InsertCreditCard = z.infer<typeof insertCreditCardSchema>;
+export type InsertDebitCard = z.infer<typeof insertDebitCardSchema>;
+export type InsertBankAccount = z.infer<typeof insertBankAccountSchema>;
+export type Password = typeof passwords.$inferSelect;
+export type InsertPassword = z.infer<typeof insertPasswordSchema>;
 export type Loan = typeof loans.$inferSelect;
 export type InsertLoan = z.infer<typeof insertLoanSchema>;
 export type Repayment = typeof repayments.$inferSelect;
 export type InsertRepayment = z.infer<typeof insertRepaymentSchema>;
+export type CustomerCredit = typeof customerCredits.$inferSelect;
+export type InsertCustomerCredit = z.infer<typeof insertCustomerCreditSchema>;
+export type Expense = typeof expenses.$inferSelect;
+export type InsertExpense = z.infer<typeof insertExpenseSchema>;
+export type FixedExpense = typeof fixedExpenses.$inferSelect;
+export type InsertFixedExpense = z.infer<typeof insertFixedExpenseSchema>;
+export type DailySales = typeof dailySales.$inferSelect;
+export type InsertDailySales = z.infer<typeof insertDailySalesSchema>;

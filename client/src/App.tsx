@@ -11,7 +11,8 @@ import CreditCards from "@/pages/credit-cards";
 import DebitCards from "@/pages/debit-cards";
 import BankAccounts from "@/pages/bank-accounts";
 import Loans from "@/pages/loans";
-import Passwords from "@/pages/passwords"; // Added import
+import Passwords from "@/pages/passwords";
+import Business from "@/pages/business";
 
 function Router() {
   return (
@@ -22,7 +23,8 @@ function Router() {
       <ProtectedRoute path="/debit-cards" component={DebitCards} />
       <ProtectedRoute path="/bank-accounts" component={BankAccounts} />
       <ProtectedRoute path="/loans" component={Loans} />
-      <ProtectedRoute path="/passwords" component={Passwords} /> {/* Added route */}
+      <ProtectedRoute path="/passwords" component={Passwords} />
+      <ProtectedRoute path="/business" component={Business} />
       <Route component={NotFound} />
     </Switch>
   );
