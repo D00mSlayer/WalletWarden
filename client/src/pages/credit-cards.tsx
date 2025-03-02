@@ -21,7 +21,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { insertCreditCardSchema, cardNetworks, bankIssuers, type CreditCard } from "@shared/schema";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Loader2, PlusCircle, Pencil, Trash2 } from "lucide-react";
+import { Loader2, PlusCircle, Pencil, Trash2, X } from "lucide-react";
 import { SiVisa, SiMastercard, SiAmericanexpress } from "react-icons/si";
 import { BsCreditCard2Front } from "react-icons/bs"; // Better icon for Rupay
 import { useToast } from "@/hooks/use-toast";
@@ -38,6 +38,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { Badge } from "@/components/ui/badge";
 
 function formatExpiryDate(value: string) {
   const cleaned = value.replace(/\D/g, "");
@@ -155,6 +156,28 @@ function CardForm({ onSubmit, defaultValues }: any) {
     form.setValue("cardName", value, { shouldValidate: true });
   };
 
+  const [newTag, setNewTag] = useState("");
+  const tags = form.watch("tags") || [];
+
+  const handleAddTag = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter" && newTag.trim()) {
+      e.preventDefault();
+      const trimmedTag = newTag.trim();
+      if (!tags.includes(trimmedTag)) {
+        form.setValue("tags", [...tags, trimmedTag], { shouldValidate: true });
+        setNewTag("");
+      }
+    }
+  };
+
+  const handleRemoveTag = (tagToRemove: string) => {
+    form.setValue(
+      "tags",
+      tags.filter((tag: string) => tag !== tagToRemove),
+      { shouldValidate: true }
+    );
+  };
+
   return (
     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
       <div>
@@ -265,6 +288,32 @@ function CardForm({ onSubmit, defaultValues }: any) {
         {form.formState.errors.issuer && (
           <p className="text-sm text-red-500">{form.formState.errors.issuer.message as string}</p>
         )}
+      </div>
+
+      <div>
+        <Label htmlFor="tags">Tags</Label>
+        <div className="flex flex-wrap gap-2 mb-2">
+          {tags.map((tag: string) => (
+            <Badge key={tag} variant="secondary" className="text-sm">
+              {tag}
+              <button
+                type="button"
+                onClick={() => handleRemoveTag(tag)}
+                className="ml-1 hover:text-destructive focus:outline-none"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </Badge>
+          ))}
+        </div>
+        <Input
+          id="tags"
+          value={newTag}
+          onChange={(e) => setNewTag(e.target.value)}
+          onKeyDown={handleAddTag}
+          placeholder="Type a tag and press Enter"
+          {...form.register("tags")}
+        />
       </div>
 
       <Button type="submit" className="w-full">
@@ -412,6 +461,15 @@ function CreditCardItem({ card, onUpdate, onDelete }: any) {
               {card.expiryDate}
             </div>
           </div>
+          {card.tags && card.tags.length > 0 && (
+            <div className="flex flex-wrap gap-2 mt-2">
+              {card.tags.map((tag: string) => (
+                <Badge key={tag} variant="outline" className="text-xs bg-white/10 text-white border-white/20">
+                  {tag}
+                </Badge>
+              ))}
+            </div>
+          )}
         </div>
       </CardContent>
     </Card>

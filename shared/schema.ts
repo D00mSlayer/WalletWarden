@@ -17,6 +17,7 @@ export const creditCards = pgTable("credit_cards", {
   cvv: text("cvv").notNull(),
   cardNetwork: text("card_network").notNull(),
   issuer: text("issuer").notNull(),
+  tags: text("tags").array().notNull().default([]),
 });
 
 export const cardNetworks = ["Visa", "Mastercard", "Rupay", "American Express"] as const;
@@ -53,6 +54,7 @@ const creditCardFormSchema = z.object({
   issuer: z.enum(bankIssuers, {
     required_error: "Please select a bank",
   }),
+  tags: z.array(z.string()).default([]),
 });
 
 export const insertCreditCardSchema = creditCardFormSchema.refine(
