@@ -38,7 +38,7 @@ function SalesForm({ onSubmit, defaultValues, onCancel }: any) {
   const form = useForm({
     resolver: zodResolver(insertDailySalesSchema),
     defaultValues: {
-      date: defaultValues?.date || format(new Date(), "yyyy-MM-dd"),
+      date: defaultValues?.date ? format(new Date(defaultValues.date), "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd"),
       cashAmount: defaultValues?.cashAmount || "",
       cardAmount: defaultValues?.cardAmount || "",
       upiAmount: defaultValues?.upiAmount || "",
@@ -104,7 +104,7 @@ function SalesForm({ onSubmit, defaultValues, onCancel }: any) {
               step="0.01"
               placeholder="Enter cash amount"
               className="pl-10"
-              {...form.register("cashAmount", { 
+              {...form.register("cashAmount", {
                 setValueAs: (value) => value === "" ? 0 : Number(value)
               })}
             />
