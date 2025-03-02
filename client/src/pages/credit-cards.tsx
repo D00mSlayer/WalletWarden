@@ -59,14 +59,7 @@ function formatExpiryDate(value: string) {
 function CardForm({ onSubmit, defaultValues }: any) {
   const form = useForm({
     resolver: zodResolver(insertCreditCardSchema),
-    defaultValues: {
-      cardName: defaultValues?.cardName || "",
-      cardNumber: defaultValues?.cardNumber || "",
-      expiryDate: defaultValues?.expiryDate || "",
-      cvv: defaultValues?.cvv || "",
-      cardNetwork: defaultValues?.cardNetwork || "",
-      issuer: defaultValues?.issuer || "",
-    },
+    defaultValues,
     mode: "onChange",
   });
 
@@ -76,6 +69,15 @@ function CardForm({ onSubmit, defaultValues }: any) {
   const expiryRef = useRef<HTMLInputElement>(null);
   const cvvRef = useRef<HTMLInputElement>(null);
   const issuerRef = useRef<HTMLButtonElement>(null);
+
+  // Initialize form with default values
+  useEffect(() => {
+    if (defaultValues) {
+      Object.entries(defaultValues).forEach(([key, value]) => {
+        form.setValue(key as any, value, { shouldValidate: true });
+      });
+    }
+  }, [defaultValues, form]);
 
   useEffect(() => {
     if (prevNetwork === cardNetwork) return;
@@ -146,6 +148,7 @@ function CardForm({ onSubmit, defaultValues }: any) {
           id="cardName"
           {...form.register("cardName")}
           onChange={handleCardNameChange}
+          defaultValue={defaultValues?.cardName}
         />
         {form.formState.errors.cardName && (
           <p className="text-sm text-red-500">{form.formState.errors.cardName.message as string}</p>
@@ -183,6 +186,7 @@ function CardForm({ onSubmit, defaultValues }: any) {
           {...form.register("cardNumber")}
           onChange={handleCardNumberChange}
           maxLength={cardNetwork === "American Express" ? 15 : 16}
+          defaultValue={defaultValues?.cardNumber}
         />
         {form.formState.errors.cardNumber && (
           <p className="text-sm text-red-500">{form.formState.errors.cardNumber.message as string}</p>
@@ -201,6 +205,7 @@ function CardForm({ onSubmit, defaultValues }: any) {
             onChange={handleExpiryChange}
             maxLength={5}
             ref={expiryRef}
+            defaultValue={defaultValues?.expiryDate}
           />
           {form.formState.errors.expiryDate && (
             <p className="text-sm text-red-500">{form.formState.errors.expiryDate.message as string}</p>
@@ -217,6 +222,7 @@ function CardForm({ onSubmit, defaultValues }: any) {
             onChange={handleCvvChange}
             maxLength={cardNetwork === "American Express" ? 4 : 3}
             ref={cvvRef}
+            defaultValue={defaultValues?.cvv}
           />
           {form.formState.errors.cvv && (
             <p className="text-sm text-red-500">{form.formState.errors.cvv.message as string}</p>
