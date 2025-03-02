@@ -75,12 +75,22 @@ function formatCardNumber(number: string, network: string, showFull: boolean = f
 function CardForm({ onSubmit, defaultValues }: any) {
   const form = useForm({
     resolver: zodResolver(insertCreditCardSchema),
-    defaultValues,
+    defaultValues: {
+      cardName: defaultValues?.cardName || "",
+      cardNumber: defaultValues?.cardNumber || "",
+      expiryDate: defaultValues?.expiryDate || "",
+      cvv: defaultValues?.cvv || "",
+      cardNetwork: defaultValues?.cardNetwork || "",
+      issuer: defaultValues?.issuer || "",
+      tags: defaultValues?.tags || [],
+    },
     mode: "onChange",
   });
 
   const cardNetwork = form.watch("cardNetwork");
   const [prevNetwork, setPrevNetwork] = useState(cardNetwork);
+  const tags = form.watch("tags") || [];
+  const [newTag, setNewTag] = useState("");
 
   const expiryRef = useRef<HTMLInputElement>(null);
   const cvvRef = useRef<HTMLInputElement>(null);
@@ -155,9 +165,6 @@ function CardForm({ onSubmit, defaultValues }: any) {
     const value = capitalizeFirstWord(e.target.value);
     form.setValue("cardName", value, { shouldValidate: true });
   };
-
-  const [newTag, setNewTag] = useState("");
-  const tags = form.watch("tags") || [];
 
   const handleAddTag = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter" && newTag.trim()) {
