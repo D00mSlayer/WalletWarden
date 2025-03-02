@@ -110,6 +110,7 @@ export const expenses = pgTable("expenses", {
   category: text("category").notNull(),
   amount: decimal("amount").notNull(),
   paidBy: text("paid_by").notNull(),
+  otherPerson: text("other_person"),
   paymentMethod: text("payment_method").notNull(),
   date: timestamp("date").notNull().defaultNow(),
   description: text("description"),
@@ -231,11 +232,20 @@ export const insertExpenseSchema = z.object({
   paidBy: z.enum(paymentSources, {
     required_error: "Please select who paid for this expense",
   }),
+  otherPerson: z.string().optional(),
   paymentMethod: z.enum(paymentMethods, {
     required_error: "Please select payment method",
   }),
   date: z.string().optional(), // Allow custom date input
   description: z.string().optional(),
+}).refine((data) => {
+  if (data.paidBy === "Other" && !data.otherPerson) {
+    return false;
+  }
+  return true;
+}, {
+  message: "Please specify who paid for the expense",
+  path: ["otherPerson"],
 });
 
 export const insertFixedExpenseSchema = z.object({

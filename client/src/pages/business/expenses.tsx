@@ -28,12 +28,17 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { insertExpenseSchema, expenseCategories, paymentSources, paymentMethods, type Expense } from "@shared/schema";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Loader2, PlusCircle, Trash2, IndianRupee, Calendar } from "lucide-react";
+import { Loader2, PlusCircle, Trash2, IndianRupee, Calendar, ChevronRight, ChevronDown, Filter } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "wouter";
 import { format } from "date-fns";
@@ -46,6 +51,7 @@ function ExpenseForm({ onSubmit, defaultValues }: any) {
       category: defaultValues?.category || "",
       amount: defaultValues?.amount || "",
       paidBy: defaultValues?.paidBy || "",
+      otherPerson: defaultValues?.otherPerson || "",
       paymentMethod: defaultValues?.paymentMethod || "",
       description: defaultValues?.description || "",
       date: defaultValues?.date || format(new Date(), "yyyy-MM-dd"),
@@ -53,10 +59,13 @@ function ExpenseForm({ onSubmit, defaultValues }: any) {
     mode: "onChange",
   });
 
+  const paidBy = form.watch("paidBy");
+
   const handleSubmit = (data: any) => {
     onSubmit({
       ...data,
       amount: Number(data.amount),
+      otherPerson: data.paidBy === "Other" ? data.otherPerson : undefined,
     });
   };
 
@@ -132,6 +141,19 @@ function ExpenseForm({ onSubmit, defaultValues }: any) {
         )}
       </div>
 
+      {paidBy === "Other" && (
+        <div>
+          <Label htmlFor="otherPerson">Person Name</Label>
+          <Input
+            id="otherPerson"
+            {...form.register("otherPerson")}
+          />
+          {form.formState.errors.otherPerson && (
+            <p className="text-sm text-red-500">{form.formState.errors.otherPerson.message as string}</p>
+          )}
+        </div>
+      )}
+
       <div>
         <Label htmlFor="paymentMethod">Payment Method</Label>
         <Select
@@ -176,8 +198,7 @@ function ExpenseCard({ expense, onDelete }: any) {
     <Card>
       <CardHeader className="flex flex-row items-start justify-between pb-2">
         <div>
-          <CardTitle className="text-lg font-normal">{expense.category}</CardTitle>
-          <div className="text-sm text-muted-foreground mt-1 flex items-center gap-1">
+          <div className="text-sm text-muted-foreground flex items-center gap-1">
             <Calendar className="h-3 w-3" />
             {formattedDate}
           </div>
@@ -207,7 +228,6 @@ function ExpenseCard({ expense, onDelete }: any) {
       <CardContent>
         <div className="space-y-4">
           <div>
-            <div className="text-sm font-medium mb-1">Amount</div>
             <div className="text-2xl font-medium flex items-center">
               <IndianRupee className="h-4 w-4" />
               {expense.amount}
@@ -217,7 +237,9 @@ function ExpenseCard({ expense, onDelete }: any) {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <div className="text-sm font-medium mb-1">Paid By</div>
-              <div className="text-sm text-muted-foreground">{expense.paidBy}</div>
+              <div className="text-sm text-muted-foreground">
+                {expense.paidBy === "Other" ? expense.otherPerson : expense.paidBy}
+              </div>
             </div>
             <div>
               <div className="text-sm font-medium mb-1">Payment Method</div>
@@ -240,6 +262,12 @@ function ExpenseCard({ expense, onDelete }: any) {
 export default function Expenses() {
   const { toast } = useToast();
   const [isOpen, setIsOpen] = useState(false);
+  const [filters, setFilters] = useState({
+    category: "",
+    paidBy: "",
+    paymentMethod: "",
+  });
+  const [expandedCategories, setExpandedCategories] = useState<string[]>([]);
 
   const { data: expenses, isLoading } = useQuery<Expense[]>({
     queryKey: ["/api/business/expenses"],
@@ -267,14 +295,46 @@ export default function Expenses() {
     },
   });
 
-  // Group expenses by date
-  const groupedExpenses = expenses?.reduce((groups, expense) => {
-    const date = format(new Date(expense.date), "PPP");
-    const group = groups[date] || [];
+  // Filter expenses
+  const filteredExpenses = expenses?.filter((expense) => {
+    if (filters.category && expense.category !== filters.category) return false;
+    if (filters.paidBy && expense.paidBy !== filters.paidBy) return false;
+    if (filters.paymentMethod && expense.paymentMethod !== filters.paymentMethod) return false;
+    return true;
+  });
+
+  // Group expenses by category
+  const groupedExpenses = filteredExpenses?.reduce((groups, expense) => {
+    const group = groups[expense.category] || [];
     group.push(expense);
-    groups[date] = group;
+    groups[expense.category] = group;
     return groups;
   }, {} as Record<string, Expense[]>) || {};
+
+  // Calculate category totals
+  const categoryTotals = Object.entries(groupedExpenses).reduce((totals, [category, expenses]) => {
+    totals[category] = expenses.reduce((sum, expense) => sum + Number(expense.amount), 0);
+    return totals;
+  }, {} as Record<string, number>);
+
+  const toggleCategory = (category: string) => {
+    setExpandedCategories((prev) =>
+      prev.includes(category)
+        ? prev.filter((c) => c !== category)
+        : [...prev, category]
+    );
+  };
+
+  const deleteCreditMutation = useMutation({
+    mutationFn: async (id: number) => {
+      await apiRequest("DELETE", `/api/business/expenses/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/business/expenses"] });
+      toast({ title: "Expense deleted successfully" });
+    },
+  });
+
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -286,6 +346,81 @@ export default function Expenses() {
           <h1 className="text-2xl font-bold text-primary">Business Expenses</h1>
 
           <div className="flex-1" />
+
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button variant="outline">
+                <Filter className="h-4 w-4 mr-2" />
+                Filters
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Filter Expenses</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div>
+                  <Label>Category</Label>
+                  <Select
+                    value={filters.category}
+                    onValueChange={(value) => setFilters(f => ({ ...f, category: value }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="All Categories" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">All Categories</SelectItem>
+                      {expenseCategories.map((category) => (
+                        <SelectItem key={category} value={category}>
+                          {category}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <Label>Paid By</Label>
+                  <Select
+                    value={filters.paidBy}
+                    onValueChange={(value) => setFilters(f => ({ ...f, paidBy: value }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="All Sources" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">All Sources</SelectItem>
+                      {paymentSources.map((source) => (
+                        <SelectItem key={source} value={source}>
+                          {source}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <Label>Payment Method</Label>
+                  <Select
+                    value={filters.paymentMethod}
+                    onValueChange={(value) => setFilters(f => ({ ...f, paymentMethod: value }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="All Methods" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">All Methods</SelectItem>
+                      {paymentMethods.map((method) => (
+                        <SelectItem key={method} value={method}>
+                          {method}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
 
           <Dialog open={isOpen} onOpenChange={setIsOpen}>
             <DialogTrigger asChild>
@@ -316,20 +451,52 @@ export default function Expenses() {
             </CardContent>
           </Card>
         ) : (
-          <div className="space-y-8">
-            {Object.entries(groupedExpenses).map(([date, dayExpenses]) => (
-              <div key={date}>
-                <h2 className="text-xl font-semibold mb-4">{date}</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {dayExpenses.map((expense) => (
-                    <ExpenseCard
-                      key={expense.id}
-                      expense={expense}
-                      onDelete={(id: number) => deleteExpenseMutation.mutate(id)}
-                    />
-                  ))}
-                </div>
-              </div>
+          <div className="space-y-4">
+            {Object.entries(groupedExpenses).map(([category, expenses]) => (
+              <Collapsible
+                key={category}
+                open={expandedCategories.includes(category)}
+                onOpenChange={() => toggleCategory(category)}
+              >
+                <Card>
+                  <CollapsibleTrigger className="w-full">
+                    <CardHeader className="flex flex-row items-center justify-between py-3">
+                      <div>
+                        <CardTitle className="text-lg font-normal">
+                          {category}
+                        </CardTitle>
+                        <div className="text-sm text-muted-foreground">
+                          {expenses.length} expense{expenses.length !== 1 ? "s" : ""}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-4">
+                        <div className="text-lg font-medium flex items-center">
+                          <IndianRupee className="h-4 w-4" />
+                          {categoryTotals[category].toFixed(2)}
+                        </div>
+                        {expandedCategories.includes(category) ? (
+                          <ChevronDown className="h-4 w-4" />
+                        ) : (
+                          <ChevronRight className="h-4 w-4" />
+                        )}
+                      </div>
+                    </CardHeader>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent>
+                    <CardContent>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {expenses.map((expense) => (
+                          <ExpenseCard
+                            key={expense.id}
+                            expense={expense}
+                            onDelete={(id: number) => deleteCreditMutation.mutate(id)}
+                          />
+                        ))}
+                      </div>
+                    </CardContent>
+                  </CollapsibleContent>
+                </Card>
+              </Collapsible>
             ))}
           </div>
         )}
