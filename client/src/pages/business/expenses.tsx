@@ -121,25 +121,62 @@ function ExpenseForm({ onSubmit, defaultValues, onCancel }: any) {
           return;
         }
 
+        // Check for required fields in shares
+        for (const share of shares) {
+          if (share.payerType === "Other" && !share.payerName) {
+            toast({
+              title: "Error",
+              description: "Person name is required for 'Other' payer type",
+              variant: "destructive",
+            });
+            return;
+          }
+          if (!share.paymentMethod) {
+            toast({
+              title: "Error",
+              description: "Payment method is required for all shares",
+              variant: "destructive",
+            });
+            return;
+          }
+        }
+
         await onSubmit({
-          ...data,
+          category: data.category,
           amount: Number(data.amount),
+          date: data.date,
+          description: data.description,
           isSharedExpense: true,
           shares: shares,
-          paidBy: undefined,
-          payerName: undefined,
-          paymentMethod: undefined,
         });
       } else {
+        if (data.paidBy === "Other" && !data.payerName) {
+          toast({
+            title: "Error",
+            description: "Person name is required when payer is 'Other'",
+            variant: "destructive",
+          });
+          return;
+        }
+
         await onSubmit({
-          ...data,
+          category: data.category,
           amount: Number(data.amount),
+          date: data.date,
+          description: data.description,
           isSharedExpense: false,
-          shares: undefined,
+          paidBy: data.paidBy,
+          payerName: data.payerName,
+          paymentMethod: data.paymentMethod,
         });
       }
     } catch (error) {
       console.error("Form submission error:", error);
+      toast({
+        title: "Error",
+        description: "Failed to submit expense",
+        variant: "destructive",
+      });
     }
   };
 
@@ -530,10 +567,10 @@ export default function Expenses() {
           const errorData = await res.json();
           throw new Error(errorData.message || "Failed to add expense");
         }
-        return res.json();
-      } catch (error) {
+        return await res.json();
+      } catch (error: any) {
         console.error("Mutation error:", error);
-        throw error;
+        throw new Error(error.message || "Failed to add expense");
       }
     },
     onSuccess: () => {
@@ -545,7 +582,7 @@ export default function Expenses() {
       toast({
         title: "Failed to add expense",
         description: error.message,
-        variant: "destructive"
+        variant: "destructive",
       });
     },
   });
