@@ -9,6 +9,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import {
   Select,
@@ -45,8 +46,7 @@ import { format } from "date-fns";
 import { useState, useEffect } from "react";
 import React from 'react';
 
-
-function ExpenseForm({ onSubmit, defaultValues }: any) {
+function ExpenseForm({ onSubmit, defaultValues, onCancel }: any) {
   const form = useForm({
     resolver: zodResolver(insertExpenseSchema),
     defaultValues: {
@@ -66,16 +66,30 @@ function ExpenseForm({ onSubmit, defaultValues }: any) {
 
   const amount = form.watch("amount");
   const paidBy = form.watch("paidBy");
+  const [isSharedExpense, setIsSharedExpense] = useState(false);
 
-  // Update shares when amount changes
+  // Update shares when amount changes or shared status changes
   useEffect(() => {
     if (amount) {
       const numAmount = Number(amount);
-      form.setValue("businessShare", numAmount, { shouldValidate: true });
-      form.setValue("personalShare", 0, { shouldValidate: true });
-      form.setValue("otherShare", 0, { shouldValidate: true });
+      if (!isSharedExpense) {
+        // If not shared, entire amount goes to the payer's category
+        if (paidBy === "Business") {
+          form.setValue("businessShare", numAmount, { shouldValidate: true });
+          form.setValue("personalShare", 0, { shouldValidate: true });
+          form.setValue("otherShare", 0, { shouldValidate: true });
+        } else if (paidBy === "Personal") {
+          form.setValue("personalShare", numAmount, { shouldValidate: true });
+          form.setValue("businessShare", 0, { shouldValidate: true });
+          form.setValue("otherShare", 0, { shouldValidate: true });
+        } else {
+          form.setValue("otherShare", numAmount, { shouldValidate: true });
+          form.setValue("businessShare", 0, { shouldValidate: true });
+          form.setValue("personalShare", 0, { shouldValidate: true });
+        }
+      }
     }
-  }, [amount]);
+  }, [amount, isSharedExpense, paidBy]);
 
   const handleSubmit = (data: any) => {
     onSubmit({
@@ -90,177 +104,199 @@ function ExpenseForm({ onSubmit, defaultValues }: any) {
 
   return (
     <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
-      <div>
-        <Label htmlFor="date">Date</Label>
-        <Input
-          id="date"
-          type="date"
-          {...form.register("date")}
-        />
-      </div>
-
-      <div>
-        <Label htmlFor="category">Category</Label>
-        <Select
-          value={form.watch("category")}
-          onValueChange={(value) => form.setValue("category", value, { shouldValidate: true })}
-        >
-          <SelectTrigger>
-            <SelectValue placeholder="Select category" />
-          </SelectTrigger>
-          <SelectContent>
-            {expenseCategories.map((category) => (
-              <SelectItem key={category} value={category}>
-                {category}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        {form.formState.errors.category && (
-          <p className="text-sm text-red-500">{form.formState.errors.category.message as string}</p>
-        )}
-      </div>
-
-      <div>
-        <Label htmlFor="amount">Amount</Label>
-        <div className="relative">
-          <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
-          <Input
-            id="amount"
-            type="number"
-            step="0.01"
-            className="pl-10"
-            {...form.register("amount", { valueAsNumber: true })}
-          />
-        </div>
-        {form.formState.errors.amount && (
-          <p className="text-sm text-red-500">{form.formState.errors.amount.message as string}</p>
-        )}
-      </div>
-
-      <div>
-        <Label htmlFor="paidBy">Paid By</Label>
-        <Select
-          value={form.watch("paidBy")}
-          onValueChange={(value) => form.setValue("paidBy", value, { shouldValidate: true })}
-        >
-          <SelectTrigger>
-            <SelectValue placeholder="Select who paid" />
-          </SelectTrigger>
-          <SelectContent>
-            {paymentSources.map((source) => (
-              <SelectItem key={source} value={source}>
-                {source}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        {form.formState.errors.paidBy && (
-          <p className="text-sm text-red-500">{form.formState.errors.paidBy.message as string}</p>
-        )}
-      </div>
-
-      {paidBy === "Other" && (
-        <div>
-          <Label htmlFor="otherPerson">Person Name</Label>
-          <Input
-            id="otherPerson"
-            {...form.register("otherPerson")}
-          />
-          {form.formState.errors.otherPerson && (
-            <p className="text-sm text-red-500">{form.formState.errors.otherPerson.message as string}</p>
-          )}
-        </div>
-      )}
-
-      <div>
-        <Label htmlFor="paymentMethod">Payment Method</Label>
-        <Select
-          value={form.watch("paymentMethod")}
-          onValueChange={(value) => form.setValue("paymentMethod", value, { shouldValidate: true })}
-        >
-          <SelectTrigger>
-            <SelectValue placeholder="Select payment method" />
-          </SelectTrigger>
-          <SelectContent>
-            {paymentMethods.map((method) => (
-              <SelectItem key={method} value={method}>
-                {method}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        {form.formState.errors.paymentMethod && (
-          <p className="text-sm text-red-500">{form.formState.errors.paymentMethod.message as string}</p>
-        )}
-      </div>
-
-      <div>
-        <Label htmlFor="description">Description (Optional)</Label>
-        <Textarea
-          id="description"
-          {...form.register("description")}
-        />
-      </div>
-
-      <div className="space-y-4 border rounded-lg p-4">
-        <h3 className="font-medium">Expense Breakdown</h3>
-
-        <div>
-          <Label htmlFor="businessShare">Business Share</Label>
-          <div className="relative">
-            <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
+      <div className="max-h-[calc(100vh-200px)] overflow-y-auto pr-2">
+        <div className="space-y-4">
+          <div>
+            <Label htmlFor="date">Date</Label>
             <Input
-              id="businessShare"
-              type="number"
-              step="0.01"
-              className="pl-10"
-              {...form.register("businessShare", { valueAsNumber: true })}
+              id="date"
+              type="date"
+              {...form.register("date")}
             />
           </div>
-          {form.formState.errors.businessShare && (
-            <p className="text-sm text-red-500">{form.formState.errors.businessShare.message as string}</p>
-          )}
-        </div>
 
-        <div>
-          <Label htmlFor="personalShare">Personal Share</Label>
-          <div className="relative">
-            <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
-            <Input
-              id="personalShare"
-              type="number"
-              step="0.01"
-              className="pl-10"
-              {...form.register("personalShare", { valueAsNumber: true })}
+          <div>
+            <Label htmlFor="category">Category</Label>
+            <Select
+              value={form.watch("category")}
+              onValueChange={(value) => form.setValue("category", value, { shouldValidate: true })}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select category" />
+              </SelectTrigger>
+              <SelectContent>
+                {expenseCategories.map((category) => (
+                  <SelectItem key={category} value={category}>
+                    {category}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {form.formState.errors.category && (
+              <p className="text-sm text-red-500">{form.formState.errors.category.message as string}</p>
+            )}
+          </div>
+
+          <div>
+            <Label htmlFor="amount">Amount</Label>
+            <div className="relative">
+              <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
+              <Input
+                id="amount"
+                type="number"
+                step="0.01"
+                className="pl-10"
+                {...form.register("amount", { valueAsNumber: true })}
+              />
+            </div>
+            {form.formState.errors.amount && (
+              <p className="text-sm text-red-500">{form.formState.errors.amount.message as string}</p>
+            )}
+          </div>
+
+          <div>
+            <Label htmlFor="paidBy">Paid By</Label>
+            <Select
+              value={form.watch("paidBy")}
+              onValueChange={(value) => form.setValue("paidBy", value, { shouldValidate: true })}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select who paid" />
+              </SelectTrigger>
+              <SelectContent>
+                {paymentSources.map((source) => (
+                  <SelectItem key={source} value={source}>
+                    {source}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {form.formState.errors.paidBy && (
+              <p className="text-sm text-red-500">{form.formState.errors.paidBy.message as string}</p>
+            )}
+          </div>
+
+          {paidBy === "Other" && (
+            <div>
+              <Label htmlFor="otherPerson">Person Name</Label>
+              <Input
+                id="otherPerson"
+                {...form.register("otherPerson")}
+              />
+              {form.formState.errors.otherPerson && (
+                <p className="text-sm text-red-500">{form.formState.errors.otherPerson.message as string}</p>
+              )}
+            </div>
+          )}
+
+          <div>
+            <Label htmlFor="paymentMethod">Payment Method</Label>
+            <Select
+              value={form.watch("paymentMethod")}
+              onValueChange={(value) => form.setValue("paymentMethod", value, { shouldValidate: true })}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select payment method" />
+              </SelectTrigger>
+              <SelectContent>
+                {paymentMethods.map((method) => (
+                  <SelectItem key={method} value={method}>
+                    {method}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {form.formState.errors.paymentMethod && (
+              <p className="text-sm text-red-500">{form.formState.errors.paymentMethod.message as string}</p>
+            )}
+          </div>
+
+          <div>
+            <Label htmlFor="description">Description (Optional)</Label>
+            <Textarea
+              id="description"
+              {...form.register("description")}
             />
           </div>
-          {form.formState.errors.personalShare && (
-            <p className="text-sm text-red-500">{form.formState.errors.personalShare.message as string}</p>
-          )}
-        </div>
 
-        <div>
-          <Label htmlFor="otherShare">Other Share</Label>
-          <div className="relative">
-            <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
-            <Input
-              id="otherShare"
-              type="number"
-              step="0.01"
-              className="pl-10"
-              {...form.register("otherShare", { valueAsNumber: true })}
+          <div className="flex items-center space-x-2">
+            <input
+              type="checkbox"
+              id="isShared"
+              checked={isSharedExpense}
+              onChange={(e) => setIsSharedExpense(e.target.checked)}
+              className="rounded border-gray-300 text-primary focus:ring-primary"
             />
+            <Label htmlFor="isShared">This is a shared expense</Label>
           </div>
-          {form.formState.errors.otherShare && (
-            <p className="text-sm text-red-500">{form.formState.errors.otherShare.message as string}</p>
+
+          {isSharedExpense && (
+            <div className="space-y-4 border rounded-lg p-4">
+              <h3 className="font-medium">Expense Breakdown</h3>
+
+              <div>
+                <Label htmlFor="businessShare">Business Share</Label>
+                <div className="relative">
+                  <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
+                  <Input
+                    id="businessShare"
+                    type="number"
+                    step="0.01"
+                    className="pl-10"
+                    {...form.register("businessShare", { valueAsNumber: true })}
+                  />
+                </div>
+                {form.formState.errors.businessShare && (
+                  <p className="text-sm text-red-500">{form.formState.errors.businessShare.message as string}</p>
+                )}
+              </div>
+
+              <div>
+                <Label htmlFor="personalShare">Personal Share</Label>
+                <div className="relative">
+                  <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
+                  <Input
+                    id="personalShare"
+                    type="number"
+                    step="0.01"
+                    className="pl-10"
+                    {...form.register("personalShare", { valueAsNumber: true })}
+                  />
+                </div>
+                {form.formState.errors.personalShare && (
+                  <p className="text-sm text-red-500">{form.formState.errors.personalShare.message as string}</p>
+                )}
+              </div>
+
+              <div>
+                <Label htmlFor="otherShare">Other Share</Label>
+                <div className="relative">
+                  <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
+                  <Input
+                    id="otherShare"
+                    type="number"
+                    step="0.01"
+                    className="pl-10"
+                    {...form.register("otherShare", { valueAsNumber: true })}
+                  />
+                </div>
+                {form.formState.errors.otherShare && (
+                  <p className="text-sm text-red-500">{form.formState.errors.otherShare.message as string}</p>
+                )}
+              </div>
+            </div>
           )}
         </div>
       </div>
 
-      <Button type="submit" className="w-full">
-        {defaultValues ? "Update Expense" : "Add Expense"}
-      </Button>
+      <DialogFooter>
+        <Button variant="outline" type="button" onClick={onCancel}>
+          Cancel
+        </Button>
+        <Button type="submit">
+          {defaultValues ? "Update Expense" : "Add Expense"}
+        </Button>
+      </DialogFooter>
     </form>
   );
 }
@@ -408,7 +444,14 @@ export default function Expenses() {
   // Filter expenses
   const filteredExpenses = expenses?.filter((expense) => {
     if (filters.category !== "all" && expense.category !== filters.category) return false;
-    if (filters.paidBy !== "all" && expense.paidBy !== filters.paidBy) return false;
+    if (filters.paidBy !== "all") {
+      if (filters.paidBy === "Other") {
+        // For "Other", include all expenses not paid by Business or Personal
+        if (expense.paidBy === "Business" || expense.paidBy === "Personal") return false;
+      } else if (expense.paidBy !== filters.paidBy) {
+        return false;
+      }
+    }
     if (filters.paymentMethod !== "all" && expense.paymentMethod !== filters.paymentMethod) return false;
     return true;
   });
@@ -434,16 +477,6 @@ export default function Expenses() {
         : [...prev, category]
     );
   };
-
-  const deleteCreditMutation = useMutation({
-    mutationFn: async (id: number) => {
-      await apiRequest("DELETE", `/api/business/expenses/${id}`);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/business/expenses"] });
-      toast({ title: "Expense deleted successfully" });
-    },
-  });
 
 
   return (
@@ -544,7 +577,10 @@ export default function Expenses() {
                 <DialogHeader>
                   <DialogTitle>Add Expense</DialogTitle>
                 </DialogHeader>
-                <ExpenseForm onSubmit={(data: any) => addExpenseMutation.mutate(data)} />
+                <ExpenseForm 
+                  onSubmit={(data: any) => addExpenseMutation.mutate(data)} 
+                  onCancel={() => setIsOpen(false)}
+                />
               </DialogContent>
             </Dialog>
           </div>
@@ -601,7 +637,7 @@ export default function Expenses() {
                           <ExpenseCard
                             key={expense.id}
                             expense={expense}
-                            onDelete={(id: number) => deleteCreditMutation.mutate(id)}
+                            onDelete={(id: number) => deleteExpenseMutation.mutate(id)}
                           />
                         ))}
                       </div>
