@@ -103,6 +103,7 @@ export const expenseCategories = [
 ] as const;
 
 export const paymentSources = ["Business", "Personal", "Other"] as const;
+export const expenseShareTypes = ["Personal", "Business", "Other"] as const;
 
 export const expenses = pgTable("expenses", {
   id: serial("id").primaryKey(),
@@ -114,6 +115,10 @@ export const expenses = pgTable("expenses", {
   paymentMethod: text("payment_method").notNull(),
   date: timestamp("date").notNull().defaultNow(),
   description: text("description"),
+  // Add breakdown fields
+  personalShare: decimal("personal_share").notNull().default("0"),
+  businessShare: decimal("business_share").notNull().default("0"),
+  otherShare: decimal("other_share").notNull().default("0"),
 });
 
 export const fixedExpenseTypes = ["Salary", "Rent", "Electricity", "Internet", "Water", "Other"] as const;
@@ -238,6 +243,10 @@ export const insertExpenseSchema = z.object({
   }),
   date: z.string().optional(), // Allow custom date input
   description: z.string().optional(),
+  // Add share amounts
+  personalShare: z.number().min(0, "Personal share cannot be negative"),
+  businessShare: z.number().min(0, "Business share cannot be negative"),
+  otherShare: z.number().min(0, "Other share cannot be negative"),
 }).refine((data) => {
   if (data.paidBy === "Other" && !data.otherPerson) {
     return false;
@@ -246,6 +255,11 @@ export const insertExpenseSchema = z.object({
 }, {
   message: "Please specify who paid for the expense",
   path: ["otherPerson"],
+}).refine((data) => {
+  const total = (data.personalShare || 0) + (data.businessShare || 0) + (data.otherShare || 0);
+  return Math.abs(total - data.amount) < 0.01; // Allow for small floating point differences
+}, {
+  message: "Share amounts must sum up to the total amount",
 });
 
 export const insertFixedExpenseSchema = z.object({

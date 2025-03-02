@@ -42,7 +42,9 @@ import { Loader2, PlusCircle, Trash2, IndianRupee, Calendar, ChevronRight, Chevr
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "wouter";
 import { format } from "date-fns";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import React from 'react';
+
 
 function ExpenseForm({ onSubmit, defaultValues }: any) {
   const form = useForm({
@@ -55,16 +57,33 @@ function ExpenseForm({ onSubmit, defaultValues }: any) {
       paymentMethod: defaultValues?.paymentMethod || "",
       description: defaultValues?.description || "",
       date: defaultValues?.date || format(new Date(), "yyyy-MM-dd"),
+      personalShare: defaultValues?.personalShare || 0,
+      businessShare: defaultValues?.businessShare || 0,
+      otherShare: defaultValues?.otherShare || 0,
     },
     mode: "onChange",
   });
 
+  const amount = form.watch("amount");
   const paidBy = form.watch("paidBy");
+
+  // Update shares when amount changes
+  useEffect(() => {
+    if (amount) {
+      const numAmount = Number(amount);
+      form.setValue("businessShare", numAmount, { shouldValidate: true });
+      form.setValue("personalShare", 0, { shouldValidate: true });
+      form.setValue("otherShare", 0, { shouldValidate: true });
+    }
+  }, [amount]);
 
   const handleSubmit = (data: any) => {
     onSubmit({
       ...data,
       amount: Number(data.amount),
+      personalShare: Number(data.personalShare),
+      businessShare: Number(data.businessShare),
+      otherShare: Number(data.otherShare),
       otherPerson: data.paidBy === "Other" ? data.otherPerson : undefined,
     });
   };
@@ -184,6 +203,61 @@ function ExpenseForm({ onSubmit, defaultValues }: any) {
         />
       </div>
 
+      <div className="space-y-4 border rounded-lg p-4">
+        <h3 className="font-medium">Expense Breakdown</h3>
+
+        <div>
+          <Label htmlFor="businessShare">Business Share</Label>
+          <div className="relative">
+            <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
+            <Input
+              id="businessShare"
+              type="number"
+              step="0.01"
+              className="pl-10"
+              {...form.register("businessShare", { valueAsNumber: true })}
+            />
+          </div>
+          {form.formState.errors.businessShare && (
+            <p className="text-sm text-red-500">{form.formState.errors.businessShare.message as string}</p>
+          )}
+        </div>
+
+        <div>
+          <Label htmlFor="personalShare">Personal Share</Label>
+          <div className="relative">
+            <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
+            <Input
+              id="personalShare"
+              type="number"
+              step="0.01"
+              className="pl-10"
+              {...form.register("personalShare", { valueAsNumber: true })}
+            />
+          </div>
+          {form.formState.errors.personalShare && (
+            <p className="text-sm text-red-500">{form.formState.errors.personalShare.message as string}</p>
+          )}
+        </div>
+
+        <div>
+          <Label htmlFor="otherShare">Other Share</Label>
+          <div className="relative">
+            <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
+            <Input
+              id="otherShare"
+              type="number"
+              step="0.01"
+              className="pl-10"
+              {...form.register("otherShare", { valueAsNumber: true })}
+            />
+          </div>
+          {form.formState.errors.otherShare && (
+            <p className="text-sm text-red-500">{form.formState.errors.otherShare.message as string}</p>
+          )}
+        </div>
+      </div>
+
       <Button type="submit" className="w-full">
         {defaultValues ? "Update Expense" : "Add Expense"}
       </Button>
@@ -193,6 +267,7 @@ function ExpenseForm({ onSubmit, defaultValues }: any) {
 
 function ExpenseCard({ expense, onDelete }: any) {
   const formattedDate = format(new Date(expense.date), "PPP");
+  const hasShares = expense.personalShare > 0 || expense.businessShare > 0 || expense.otherShare > 0;
 
   return (
     <Card>
@@ -247,6 +322,41 @@ function ExpenseCard({ expense, onDelete }: any) {
             </div>
           </div>
 
+          {hasShares && (
+            <div>
+              <div className="text-sm font-medium mb-2">Expense Breakdown</div>
+              <div className="space-y-1">
+                {expense.businessShare > 0 && (
+                  <div className="flex justify-between text-sm">
+                    <span>Business</span>
+                    <span className="text-muted-foreground flex items-center">
+                      <IndianRupee className="h-3 w-3" />
+                      {expense.businessShare}
+                    </span>
+                  </div>
+                )}
+                {expense.personalShare > 0 && (
+                  <div className="flex justify-between text-sm">
+                    <span>Personal</span>
+                    <span className="text-muted-foreground flex items-center">
+                      <IndianRupee className="h-3 w-3" />
+                      {expense.personalShare}
+                    </span>
+                  </div>
+                )}
+                {expense.otherShare > 0 && (
+                  <div className="flex justify-between text-sm">
+                    <span>Other</span>
+                    <span className="text-muted-foreground flex items-center">
+                      <IndianRupee className="h-3 w-3" />
+                      {expense.otherShare}
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           {expense.description && (
             <div>
               <div className="text-sm font-medium mb-1">Description</div>
@@ -263,9 +373,9 @@ export default function Expenses() {
   const { toast } = useToast();
   const [isOpen, setIsOpen] = useState(false);
   const [filters, setFilters] = useState({
-    category: "",
-    paidBy: "",
-    paymentMethod: "",
+    category: "all",
+    paidBy: "all",
+    paymentMethod: "all",
   });
   const [expandedCategories, setExpandedCategories] = useState<string[]>([]);
 
@@ -297,9 +407,9 @@ export default function Expenses() {
 
   // Filter expenses
   const filteredExpenses = expenses?.filter((expense) => {
-    if (filters.category && expense.category !== filters.category) return false;
-    if (filters.paidBy && expense.paidBy !== filters.paidBy) return false;
-    if (filters.paymentMethod && expense.paymentMethod !== filters.paymentMethod) return false;
+    if (filters.category !== "all" && expense.category !== filters.category) return false;
+    if (filters.paidBy !== "all" && expense.paidBy !== filters.paidBy) return false;
+    if (filters.paymentMethod !== "all" && expense.paymentMethod !== filters.paymentMethod) return false;
     return true;
   });
 
@@ -339,103 +449,105 @@ export default function Expenses() {
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white border-b">
-        <div className="max-w-7xl mx-auto px-4 py-4 flex items-center gap-4">
-          <Link href="/business" className="text-gray-600 hover:text-gray-900">
-            ← Back
-          </Link>
-          <h1 className="text-2xl font-bold text-primary">Business Expenses</h1>
+        <div className="max-w-7xl mx-auto px-4 py-4">
+          <div className="flex items-center gap-4 mb-4">
+            <Link href="/business" className="text-gray-600 hover:text-gray-900">
+              ← Back
+            </Link>
+            <h1 className="text-2xl font-bold text-primary">Business Expenses</h1>
+          </div>
 
-          <div className="flex-1" />
+          <div className="flex flex-wrap gap-2">
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button variant="outline" className="flex-1 sm:flex-none">
+                  <Filter className="h-4 w-4 mr-2" />
+                  Filters
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Filter Expenses</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <div>
+                    <Label>Category</Label>
+                    <Select
+                      value={filters.category}
+                      onValueChange={(value) => setFilters(f => ({ ...f, category: value }))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="All Categories" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Categories</SelectItem>
+                        {expenseCategories.map((category) => (
+                          <SelectItem key={category} value={category}>
+                            {category}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
 
-          <Dialog>
-            <DialogTrigger asChild>
-              <Button variant="outline">
-                <Filter className="h-4 w-4 mr-2" />
-                Filters
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Filter Expenses</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4">
-                <div>
-                  <Label>Category</Label>
-                  <Select
-                    value={filters.category}
-                    onValueChange={(value) => setFilters(f => ({ ...f, category: value }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="All Categories" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="">All Categories</SelectItem>
-                      {expenseCategories.map((category) => (
-                        <SelectItem key={category} value={category}>
-                          {category}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <div>
+                    <Label>Paid By</Label>
+                    <Select
+                      value={filters.paidBy}
+                      onValueChange={(value) => setFilters(f => ({ ...f, paidBy: value }))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="All Sources" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Sources</SelectItem>
+                        {paymentSources.map((source) => (
+                          <SelectItem key={source} value={source}>
+                            {source}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <Label>Payment Method</Label>
+                    <Select
+                      value={filters.paymentMethod}
+                      onValueChange={(value) => setFilters(f => ({ ...f, paymentMethod: value }))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="All Methods" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Methods</SelectItem>
+                        {paymentMethods.map((method) => (
+                          <SelectItem key={method} value={method}>
+                            {method}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
+              </DialogContent>
+            </Dialog>
 
-                <div>
-                  <Label>Paid By</Label>
-                  <Select
-                    value={filters.paidBy}
-                    onValueChange={(value) => setFilters(f => ({ ...f, paidBy: value }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="All Sources" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="">All Sources</SelectItem>
-                      {paymentSources.map((source) => (
-                        <SelectItem key={source} value={source}>
-                          {source}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div>
-                  <Label>Payment Method</Label>
-                  <Select
-                    value={filters.paymentMethod}
-                    onValueChange={(value) => setFilters(f => ({ ...f, paymentMethod: value }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="All Methods" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="">All Methods</SelectItem>
-                      {paymentMethods.map((method) => (
-                        <SelectItem key={method} value={method}>
-                          {method}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            </DialogContent>
-          </Dialog>
-
-          <Dialog open={isOpen} onOpenChange={setIsOpen}>
-            <DialogTrigger asChild>
-              <Button>
-                <PlusCircle className="h-4 w-4 mr-2" />
-                Add Expense
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Add Expense</DialogTitle>
-              </DialogHeader>
-              <ExpenseForm onSubmit={(data: any) => addExpenseMutation.mutate(data)} />
-            </DialogContent>
-          </Dialog>
+            <Dialog open={isOpen} onOpenChange={setIsOpen}>
+              <DialogTrigger asChild>
+                <Button className="flex-1 sm:flex-none">
+                  <PlusCircle className="h-4 w-4 mr-2" />
+                  Add Expense
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Add Expense</DialogTitle>
+                </DialogHeader>
+                <ExpenseForm onSubmit={(data: any) => addExpenseMutation.mutate(data)} />
+              </DialogContent>
+            </Dialog>
+          </div>
         </div>
       </header>
 
