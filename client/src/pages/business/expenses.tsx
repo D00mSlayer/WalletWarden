@@ -60,6 +60,9 @@ function ExpenseForm({ onSubmit, defaultValues, onCancel }: any) {
       personalShare: defaultValues?.personalShare || 0,
       businessShare: defaultValues?.businessShare || 0,
       otherShare: defaultValues?.otherShare || 0,
+      personalPaymentMethod: defaultValues?.personalPaymentMethod || "",
+      businessPaymentMethod: defaultValues?.businessPaymentMethod || "",
+      otherPaymentMethod: defaultValues?.otherPaymentMethod || "",
     },
     mode: "onChange",
   });
@@ -75,9 +78,10 @@ function ExpenseForm({ onSubmit, defaultValues, onCancel }: any) {
   // Effect to handle shared expense changes
   useEffect(() => {
     if (isSharedExpense) {
-      // Clear paid by when switching to shared expense
+      // Clear paid by and payment method when switching to shared expense
       form.setValue("paidBy", "", { shouldValidate: true });
       form.setValue("otherPerson", "", { shouldValidate: true });
+      form.setValue("paymentMethod", "", { shouldValidate: true });
     }
   }, [isSharedExpense]);
 
@@ -233,30 +237,30 @@ function ExpenseForm({ onSubmit, defaultValues, onCancel }: any) {
                   )}
                 </div>
               )}
+
+              <div>
+                <Label htmlFor="paymentMethod">Payment Method</Label>
+                <Select
+                  value={form.watch("paymentMethod")}
+                  onValueChange={(value) => form.setValue("paymentMethod", value, { shouldValidate: true })}
+                >
+                  <SelectTrigger className="focus:border-l-primary">
+                    <SelectValue placeholder="Select payment method" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {paymentMethods.map((method) => (
+                      <SelectItem key={method} value={method}>
+                        {method}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {form.formState.errors.paymentMethod && (
+                  <p className="text-sm text-red-500">{form.formState.errors.paymentMethod.message as string}</p>
+                )}
+              </div>
             </>
           )}
-
-          <div>
-            <Label htmlFor="paymentMethod">Payment Method</Label>
-            <Select
-              value={form.watch("paymentMethod")}
-              onValueChange={(value) => form.setValue("paymentMethod", value, { shouldValidate: true })}
-            >
-              <SelectTrigger className="focus:border-l-primary">
-                <SelectValue placeholder="Select payment method" />
-              </SelectTrigger>
-              <SelectContent>
-                {paymentMethods.map((method) => (
-                  <SelectItem key={method} value={method}>
-                    {method}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {form.formState.errors.paymentMethod && (
-              <p className="text-sm text-red-500">{form.formState.errors.paymentMethod.message as string}</p>
-            )}
-          </div>
 
           <div>
             <Label htmlFor="description">Description (Optional)</Label>
@@ -290,6 +294,26 @@ function ExpenseForm({ onSubmit, defaultValues, onCancel }: any) {
                     {...form.register("businessShare", { valueAsNumber: true })}
                   />
                 </div>
+                {businessShare > 0 && (
+                  <div className="mt-2">
+                    <Label htmlFor="businessPaymentMethod">Payment Method</Label>
+                    <Select
+                      value={form.watch("businessPaymentMethod")}
+                      onValueChange={(value) => form.setValue("businessPaymentMethod", value, { shouldValidate: true })}
+                    >
+                      <SelectTrigger className="focus:border-l-primary">
+                        <SelectValue placeholder="Select payment method" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {paymentMethods.map((method) => (
+                          <SelectItem key={method} value={method}>
+                            {method}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
                 {form.formState.errors.businessShare && (
                   <p className="text-sm text-red-500">{form.formState.errors.businessShare.message as string}</p>
                 )}
@@ -307,6 +331,26 @@ function ExpenseForm({ onSubmit, defaultValues, onCancel }: any) {
                     {...form.register("personalShare", { valueAsNumber: true })}
                   />
                 </div>
+                {personalShare > 0 && (
+                  <div className="mt-2">
+                    <Label htmlFor="personalPaymentMethod">Payment Method</Label>
+                    <Select
+                      value={form.watch("personalPaymentMethod")}
+                      onValueChange={(value) => form.setValue("personalPaymentMethod", value, { shouldValidate: true })}
+                    >
+                      <SelectTrigger className="focus:border-l-primary">
+                        <SelectValue placeholder="Select payment method" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {paymentMethods.map((method) => (
+                          <SelectItem key={method} value={method}>
+                            {method}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
                 {form.formState.errors.personalShare && (
                   <p className="text-sm text-red-500">{form.formState.errors.personalShare.message as string}</p>
                 )}
@@ -324,6 +368,26 @@ function ExpenseForm({ onSubmit, defaultValues, onCancel }: any) {
                     {...form.register("otherShare", { valueAsNumber: true })}
                   />
                 </div>
+                {otherShare > 0 && (
+                  <div className="mt-2">
+                    <Label htmlFor="otherPaymentMethod">Payment Method</Label>
+                    <Select
+                      value={form.watch("otherPaymentMethod")}
+                      onValueChange={(value) => form.setValue("otherPaymentMethod", value, { shouldValidate: true })}
+                    >
+                      <SelectTrigger className="focus:border-l-primary">
+                        <SelectValue placeholder="Select payment method" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {paymentMethods.map((method) => (
+                          <SelectItem key={method} value={method}>
+                            {method}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
                 {form.formState.errors.otherShare && (
                   <p className="text-sm text-red-500">{form.formState.errors.otherShare.message as string}</p>
                 )}
@@ -389,26 +453,31 @@ function ExpenseCard({ expense, onDelete }: any) {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <div className="text-sm font-medium mb-1">Paid By</div>
-              <div className="text-sm text-muted-foreground">
-                {expense.paidBy === "Other" ? expense.otherPerson : expense.paidBy}
+          {!hasShares && (
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <div className="text-sm font-medium mb-1">Paid By</div>
+                <div className="text-sm text-muted-foreground">
+                  {expense.paidBy === "Other" ? expense.otherPerson : expense.paidBy}
+                </div>
+              </div>
+              <div>
+                <div className="text-sm font-medium mb-1">Payment Method</div>
+                <div className="text-sm text-muted-foreground">{expense.paymentMethod}</div>
               </div>
             </div>
-            <div>
-              <div className="text-sm font-medium mb-1">Payment Method</div>
-              <div className="text-sm text-muted-foreground">{expense.paymentMethod}</div>
-            </div>
-          </div>
+          )}
 
           {hasShares && (
             <div>
               <div className="text-sm font-medium mb-2">Expense Breakdown</div>
-              <div className="space-y-1">
+              <div className="space-y-2">
                 {expense.businessShare > 0 && (
-                  <div className="flex justify-between text-sm">
-                    <span>Business</span>
+                  <div className="flex justify-between text-sm items-center">
+                    <div>
+                      <span>Business</span>
+                      <div className="text-xs text-muted-foreground">via {expense.businessPaymentMethod}</div>
+                    </div>
                     <span className="text-muted-foreground flex items-center">
                       <IndianRupee className="h-3 w-3" />
                       {expense.businessShare}
@@ -416,8 +485,11 @@ function ExpenseCard({ expense, onDelete }: any) {
                   </div>
                 )}
                 {expense.personalShare > 0 && (
-                  <div className="flex justify-between text-sm">
-                    <span>Personal</span>
+                  <div className="flex justify-between text-sm items-center">
+                    <div>
+                      <span>Personal</span>
+                      <div className="text-xs text-muted-foreground">via {expense.personalPaymentMethod}</div>
+                    </div>
                     <span className="text-muted-foreground flex items-center">
                       <IndianRupee className="h-3 w-3" />
                       {expense.personalShare}
@@ -425,8 +497,11 @@ function ExpenseCard({ expense, onDelete }: any) {
                   </div>
                 )}
                 {expense.otherShare > 0 && (
-                  <div className="flex justify-between text-sm">
-                    <span>Other</span>
+                  <div className="flex justify-between text-sm items-center">
+                    <div>
+                      <span>Other</span>
+                      <div className="text-xs text-muted-foreground">via {expense.otherPaymentMethod}</div>
+                    </div>
                     <span className="text-muted-foreground flex items-center">
                       <IndianRupee className="h-3 w-3" />
                       {expense.otherShare}

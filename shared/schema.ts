@@ -119,6 +119,10 @@ export const expenses = pgTable("expenses", {
   personalShare: decimal("personal_share").notNull().default("0"),
   businessShare: decimal("business_share").notNull().default("0"),
   otherShare: decimal("other_share").notNull().default("0"),
+  // Add payment methods for each share
+  personalPaymentMethod: text("personal_payment_method"),
+  businessPaymentMethod: text("business_payment_method"),
+  otherPaymentMethod: text("other_payment_method"),
 });
 
 export const fixedExpenseTypes = ["Salary", "Rent", "Electricity", "Internet", "Water", "Other"] as const;
@@ -247,6 +251,10 @@ export const insertExpenseSchema = z.object({
   personalShare: z.number().min(0, "Personal share cannot be negative"),
   businessShare: z.number().min(0, "Business share cannot be negative"),
   otherShare: z.number().min(0, "Other share cannot be negative"),
+  // Add payment methods for shares
+  personalPaymentMethod: z.enum(paymentMethods).optional(),
+  businessPaymentMethod: z.enum(paymentMethods).optional(),
+  otherPaymentMethod: z.enum(paymentMethods).optional(),
 }).refine((data) => {
   if (data.paidBy === "Other" && !data.otherPerson) {
     return false;
@@ -260,6 +268,19 @@ export const insertExpenseSchema = z.object({
   return Math.abs(total - data.amount) < 0.01; // Allow for small floating point differences
 }, {
   message: "Share amounts must sum up to the total amount",
+}).refine((data) => {
+  const hasPersonalShare = (data.personalShare || 0) > 0;
+  const hasBusinessShare = (data.businessShare || 0) > 0;
+  const hasOtherShare = (data.otherShare || 0) > 0;
+
+  // Check if payment methods are provided for shares that have amounts
+  if (hasPersonalShare && !data.personalPaymentMethod) return false;
+  if (hasBusinessShare && !data.businessPaymentMethod) return false;
+  if (hasOtherShare && !data.otherPaymentMethod) return false;
+
+  return true;
+}, {
+  message: "Please select payment method for each share",
 });
 
 export const insertFixedExpenseSchema = z.object({
