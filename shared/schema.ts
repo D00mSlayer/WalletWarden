@@ -37,10 +37,12 @@ export const bankAccounts = pgTable("bank_accounts", {
   userId: integer("user_id").notNull(),
   bankName: text("bank_name").notNull(),
   accountNumber: text("account_number").notNull(),
+  accountType: text("account_type").notNull(),
   customerId: text("customer_id"),
   ifscCode: text("ifsc_code").notNull(),
   netBankingPassword: text("net_banking_password"),
   mpin: text("mpin"),
+  tags: text("tags").array().notNull().default([]),
 });
 
 export const cardNetworks = ["Visa", "Mastercard", "Rupay", "American Express"] as const;
@@ -58,6 +60,8 @@ export const bankIssuers = [
   "Kotak Mahindra Bank",
   "AU Small Finance Bank"
 ] as const;
+
+export const accountTypes = ["Savings", "Current"] as const;
 
 const currentYear = new Date().getFullYear() % 100; // Get last 2 digits of current year
 
@@ -112,6 +116,9 @@ export const insertBankAccountSchema = z.object({
   bankName: z.enum(bankIssuers, {
     required_error: "Please select a bank",
   }),
+  accountType: z.enum(accountTypes, {
+    required_error: "Please select account type",
+  }),
   accountNumber: z.string()
     .min(1, "Account number is required")
     .regex(/^\d+$/, "Account number must contain only digits")
@@ -126,6 +133,7 @@ export const insertBankAccountSchema = z.object({
     .regex(/^\d*$/, "mPIN must contain only digits")
     .max(6, "mPIN must not exceed 6 digits")
     .optional(),
+  tags: z.array(z.string()).default([]),
 });
 
 export const insertCreditCardSchema = cardValidationSchema;

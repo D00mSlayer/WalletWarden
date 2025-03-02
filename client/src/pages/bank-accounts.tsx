@@ -18,10 +18,10 @@ import {
 } from "@/components/ui/select";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { insertBankAccountSchema, bankIssuers, type BankAccount } from "@shared/schema";
+import { insertBankAccountSchema, bankIssuers, accountTypes, type BankAccount } from "@shared/schema";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Loader2, PlusCircle, Pencil, Trash2, Copy } from "lucide-react";
+import { Loader2, PlusCircle, Pencil, Trash2, Copy, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "wouter";
 import { useState, useEffect } from "react";
@@ -36,6 +36,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { Badge } from "@/components/ui/badge";
 
 function formatAccountNumber(number: string, showFull: boolean = false): string {
   if (!showFull) {
@@ -50,13 +51,42 @@ function AccountForm({ onSubmit, defaultValues }: any) {
     defaultValues: {
       bankName: defaultValues?.bankName || "",
       accountNumber: defaultValues?.accountNumber || "",
+      accountType: defaultValues?.accountType || "",
       customerId: defaultValues?.customerId || "",
       ifscCode: defaultValues?.ifscCode || "",
       netBankingPassword: defaultValues?.netBankingPassword || "",
       mpin: defaultValues?.mpin || "",
+      tags: Array.isArray(defaultValues?.tags) ? defaultValues.tags : [],
     },
     mode: "onChange",
   });
+
+  const [newTag, setNewTag] = useState("");
+  const tags = form.watch("tags") || [];
+
+  const handleAddTag = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter" && newTag.trim()) {
+      e.preventDefault();
+      const trimmedTag = newTag.trim();
+      if (!tags.includes(trimmedTag)) {
+        form.setValue("tags", [...tags, trimmedTag], { shouldValidate: true });
+        setNewTag("");
+      }
+    }
+  };
+
+  const handleRemoveTag = (tagToRemove: string) => {
+    form.setValue(
+      "tags",
+      tags.filter((tag: string) => tag !== tagToRemove),
+      { shouldValidate: true }
+    );
+  };
+
+  const handleIfscChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value.toUpperCase();
+    form.setValue("ifscCode", value, { shouldValidate: true });
+  };
 
   return (
     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
@@ -79,6 +109,28 @@ function AccountForm({ onSubmit, defaultValues }: any) {
         </Select>
         {form.formState.errors.bankName && (
           <p className="text-sm text-red-500">{form.formState.errors.bankName.message as string}</p>
+        )}
+      </div>
+
+      <div>
+        <Label htmlFor="accountType">Account Type</Label>
+        <Select
+          value={form.watch("accountType")}
+          onValueChange={(value) => form.setValue("accountType", value, { shouldValidate: true })}
+        >
+          <SelectTrigger>
+            <SelectValue placeholder="Select account type" />
+          </SelectTrigger>
+          <SelectContent>
+            {accountTypes.map((type) => (
+              <SelectItem key={type} value={type}>
+                {type}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        {form.formState.errors.accountType && (
+          <p className="text-sm text-red-500">{form.formState.errors.accountType.message as string}</p>
         )}
       </div>
 
@@ -114,6 +166,7 @@ function AccountForm({ onSubmit, defaultValues }: any) {
           id="ifscCode"
           type="text"
           {...form.register("ifscCode")}
+          onChange={handleIfscChange}
           placeholder="e.g., HDFC0000123"
         />
         {form.formState.errors.ifscCode && (
@@ -122,10 +175,10 @@ function AccountForm({ onSubmit, defaultValues }: any) {
       </div>
 
       <div>
-        <Label htmlFor="netBankingPassword">Net Banking Password (Optional)</Label>
+        <Label htmlFor="netBankingPassword">Net Banking Password Pattern (Optional)</Label>
         <Input
           id="netBankingPassword"
-          type="password"
+          type="text"
           {...form.register("netBankingPassword")}
         />
         {form.formState.errors.netBankingPassword && (
@@ -137,7 +190,7 @@ function AccountForm({ onSubmit, defaultValues }: any) {
         <Label htmlFor="mpin">MPIN (Optional)</Label>
         <Input
           id="mpin"
-          type="password"
+          type="text"
           inputMode="numeric"
           pattern="[0-9]*"
           maxLength={6}
@@ -146,6 +199,31 @@ function AccountForm({ onSubmit, defaultValues }: any) {
         {form.formState.errors.mpin && (
           <p className="text-sm text-red-500">{form.formState.errors.mpin.message as string}</p>
         )}
+      </div>
+
+      <div>
+        <Label htmlFor="tags">Tags</Label>
+        <div className="flex flex-wrap gap-2 mb-2">
+          {Array.isArray(tags) && tags.map((tag: string) => (
+            <Badge key={tag} variant="secondary" className="text-sm">
+              {tag}
+              <button
+                type="button"
+                onClick={() => handleRemoveTag(tag)}
+                className="ml-1 hover:text-destructive focus:outline-none"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </Badge>
+          ))}
+        </div>
+        <Input
+          id="tags"
+          value={newTag}
+          onChange={(e) => setNewTag(e.target.value)}
+          onKeyDown={handleAddTag}
+          placeholder="Type a tag and press Enter"
+        />
       </div>
 
       <Button type="submit" className="w-full">
@@ -214,6 +292,7 @@ function BankAccountItem({ account, onUpdate, onDelete }: any) {
       <CardHeader className="flex flex-row items-start justify-between pb-8">
         <div>
           <CardTitle className="text-lg font-normal mb-1">{account.bankName}</CardTitle>
+          <div className="text-sm text-muted-foreground">{account.accountType}</div>
         </div>
         <div className="flex gap-2">
           <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
@@ -281,6 +360,34 @@ function BankAccountItem({ account, onUpdate, onDelete }: any) {
               <Copy className="h-3 w-3" />
             </Button>
           </div>
+          {(account.netBankingPassword || account.mpin) && (
+            <div className="text-sm space-y-1">
+              {account.netBankingPassword && (
+                <div>
+                  <span className="font-medium">Password Pattern:</span>{" "}
+                  <span className="font-mono">{account.netBankingPassword}</span>
+                </div>
+              )}
+              {account.mpin && (
+                <div>
+                  <span className="font-medium">MPIN:</span>{" "}
+                  <span className="font-mono">{account.mpin}</span>
+                </div>
+              )}
+            </div>
+          )}
+          {account.tags && account.tags.length > 0 && (
+            <div>
+              <span className="font-medium">Tags:</span>
+              <div className="flex flex-wrap gap-1">
+                {account.tags.map((tag: string) => (
+                  <Badge key={tag} className="text-sm" variant="secondary">
+                    {tag}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </CardContent>
     </Card>
