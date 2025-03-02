@@ -310,12 +310,24 @@ function CreditCardItem({ card, onUpdate, onDelete }: any) {
   const { toast } = useToast();
   const gradient = getCardGradient(card.cardNetwork);
 
+  // Auto-hide number after 5 seconds
+  useEffect(() => {
+    if (showFullNumber) {
+      const timer = setTimeout(() => {
+        setShowFullNumber(false);
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [showFullNumber]);
+
   const handleUpdate = async (data: any) => {
     await onUpdate(data);
     setIsEditOpen(false);
   };
 
   const copyCardNumber = async () => {
+    if (!showFullNumber) return; // Only allow copy when number is visible
+
     try {
       await navigator.clipboard.writeText(card.cardNumber);
       toast({
@@ -382,13 +394,13 @@ function CreditCardItem({ card, onUpdate, onDelete }: any) {
         <div className="space-y-4">
           <div className="flex justify-between items-center">
             <button
-              className="text-xl tracking-widest focus:outline-none transition-opacity hover:opacity-80"
+              className="text-xl tracking-widest font-mono w-48 text-left focus:outline-none transition-opacity hover:opacity-80"
               onClick={() => setShowFullNumber(!showFullNumber)}
               onContextMenu={(e) => {
                 e.preventDefault();
                 copyCardNumber();
               }}
-              title="Click to view full number, press and hold to copy"
+              title={showFullNumber ? "Press and hold to copy, click to hide" : "Click to view full number"}
             >
               {formatCardNumber(card.cardNumber, card.cardNetwork, showFullNumber)}
             </button>
