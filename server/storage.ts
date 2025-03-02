@@ -1,4 +1,4 @@
-import { User, InsertUser, CreditCard, InsertCreditCard, DebitCard, InsertDebitCard, BankAccount, InsertBankAccount, Loan, InsertLoan, Repayment, InsertRepayment, Password, InsertPassword } from "@shared/schema";
+import { User, InsertUser, CreditCard, InsertCreditCard, DebitCard, InsertDebitCard, BankAccount, InsertBankAccount, Loan, InsertLoan, Repayment, InsertRepayment, Password, InsertPassword, CustomerCredit, InsertCustomerCredit } from "@shared/schema";
 import session from "express-session";
 import createMemoryStore from "memorystore";
 
@@ -45,6 +45,11 @@ export interface IStorage {
   deletePassword(id: number): Promise<void>;
 
   sessionStore: session.Store;
+  getCustomerCredits(userId: number): Promise<CustomerCredit[]>;
+  getCustomerCredit(id: number): Promise<CustomerCredit | undefined>;
+  createCustomerCredit(userId: number, credit: InsertCustomerCredit): Promise<CustomerCredit>;
+  markCustomerCreditPaid(id: number): Promise<CustomerCredit>;
+  deleteCustomerCredit(id: number): Promise<void>;
 }
 
 export class MemStorage implements IStorage {
@@ -55,12 +60,14 @@ export class MemStorage implements IStorage {
   private loans: Map<number, Loan>;
   private repayments: Map<number, Repayment>;
   private passwords: Map<number, Password>;
+  private customerCredits: Map<number, CustomerCredit>;
   private currentUserId: number;
   private currentCardId: number;
   private currentAccountId: number;
   private currentLoanId: number;
   private currentRepaymentId: number;
   private currentPasswordId: number;
+  private currentCustomerCreditId: number;
   sessionStore: session.Store;
 
   constructor() {
@@ -71,12 +78,14 @@ export class MemStorage implements IStorage {
     this.loans = new Map();
     this.repayments = new Map();
     this.passwords = new Map();
+    this.customerCredits = new Map();
     this.currentUserId = 1;
     this.currentCardId = 1;
     this.currentAccountId = 1;
     this.currentLoanId = 1;
     this.currentRepaymentId = 1;
     this.currentPasswordId = 1;
+    this.currentCustomerCreditId = 1;
     this.sessionStore = new MemoryStore({
       checkPeriod: 86400000,
     });
@@ -297,6 +306,50 @@ export class MemStorage implements IStorage {
 
   async deletePassword(id: number): Promise<void> {
     this.passwords.delete(id);
+  }
+
+  async getCustomerCredits(userId: number): Promise<CustomerCredit[]> {
+    return Array.from(this.customerCredits.values()).filter(
+      (credit) => credit.userId === userId,
+    );
+  }
+
+  async getCustomerCredit(id: number): Promise<CustomerCredit | undefined> {
+    return this.customerCredits.get(id);
+  }
+
+  async createCustomerCredit(userId: number, credit: InsertCustomerCredit): Promise<CustomerCredit> {
+    const id = this.currentCustomerCreditId++;
+    const newCredit: CustomerCredit = {
+      ...credit,
+      id,
+      userId,
+      date: new Date(),
+      status: "pending",
+      paidDate: null,
+      amount: String(credit.amount), // Convert to string as per schema
+      purpose: credit.purpose || null,
+      notes: credit.notes || null,
+    };
+    this.customerCredits.set(id, newCredit);
+    return newCredit;
+  }
+
+  async markCustomerCreditPaid(id: number): Promise<CustomerCredit> {
+    const credit = await this.getCustomerCredit(id);
+    if (!credit) throw new Error("Credit not found");
+
+    const updated: CustomerCredit = {
+      ...credit,
+      status: "paid",
+      paidDate: new Date(),
+    };
+    this.customerCredits.set(id, updated);
+    return updated;
+  }
+
+  async deleteCustomerCredit(id: number): Promise<void> {
+    this.customerCredits.delete(id);
   }
 }
 

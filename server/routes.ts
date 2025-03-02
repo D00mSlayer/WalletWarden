@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { setupAuth } from "./auth";
 import { storage } from "./storage";
-import { insertCreditCardSchema, insertDebitCardSchema, insertBankAccountSchema, insertLoanSchema, insertRepaymentSchema, insertPasswordSchema } from "@shared/schema";
+import { insertCreditCardSchema, insertDebitCardSchema, insertBankAccountSchema, insertLoanSchema, insertRepaymentSchema, insertPasswordSchema, insertCustomerCreditSchema } from "@shared/schema";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   setupAuth(app);
@@ -236,6 +236,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
     if (!password || password.userId !== req.user.id) return res.sendStatus(404);
 
     await storage.deletePassword(password.id);
+    res.sendStatus(204);
+  });
+
+  // Customer Credit Routes
+  app.get("/api/business/credits", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    const credits = await storage.getCustomerCredits(req.user.id);
+    res.json(credits);
+  });
+
+  app.post("/api/business/credits", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    const parsed = insertCustomerCreditSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json(parsed.error);
+
+    const credit = await storage.createCustomerCredit(req.user.id, parsed.data);
+    res.status(201).json(credit);
+  });
+
+  app.post("/api/business/credits/:id/paid", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+
+    const credit = await storage.getCustomerCredit(parseInt(req.params.id));
+    if (!credit || credit.userId !== req.user.id) return res.sendStatus(404);
+
+    const updated = await storage.markCustomerCreditPaid(credit.id);
+    res.json(updated);
+  });
+
+  app.delete("/api/business/credits/:id", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+
+    const credit = await storage.getCustomerCredit(parseInt(req.params.id));
+    if (!credit || credit.userId !== req.user.id) return res.sendStatus(404);
+
+    await storage.deleteCustomerCredit(credit.id);
     res.sendStatus(204);
   });
 
