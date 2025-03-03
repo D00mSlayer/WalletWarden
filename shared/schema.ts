@@ -17,6 +17,20 @@ export const documentTypes = [
   "Other"
 ] as const;
 
+export const documentTypeToTags: Record<string, string[]> = {
+  "Aadhaar Card": ["aadhaar"],
+  "Aadhaar Card (Masked)": ["aadhaar"],
+  "PAN Card": ["pan"],
+  "Driving License": ["dl"],
+  "Passport": ["passport"],
+  "Rental Agreement": ["rental"],
+  "Vehicle Insurance": ["vehicle"],
+  "Vehicle Registration Certificate": ["vehicle"],
+  "COVID-19 Certificate": ["covid"],
+  "Electricity Bill": ["electricity"],
+  "Business Registration Certificate": ["business"],
+};
+
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   username: text("username").notNull().unique(),
@@ -435,6 +449,7 @@ export const documents = pgTable("documents", {
   userId: integer("user_id").notNull(),
   documentType: text("document_type").notNull(),
   customType: text("custom_type"), // For "Other" document type
+  additionalInfo: text("additional_info"), // Additional document information
   fileName: text("file_name").notNull(),
   fileData: text("file_data").notNull(), // Base64 encoded file data
   tags: text("tags").array().notNull().default([]),
@@ -447,6 +462,7 @@ export const insertDocumentSchema = z.object({
     required_error: "Please select document type",
   }),
   customType: z.string().optional(),
+  additionalInfo: z.string().optional(),
   fileName: z.string().min(1, "File is required"),
   fileData: z.string().min(1, "File data is required"),
   tags: z.array(z.string()).default([]),

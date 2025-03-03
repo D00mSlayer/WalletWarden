@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { type Document, insertDocumentSchema, documentTypes } from "@shared/schema";
+import { type Document, insertDocumentSchema, documentTypes, documentTypeToTags } from "@shared/schema";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { queryClient } from "@/lib/queryClient";
@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { FileText, Plus, X, Pencil, Trash, ChevronLeft } from "lucide-react";
+import { FileText, Plus, X, Pencil, Trash, ChevronLeft, Download } from "lucide-react";
 import { Link } from "wouter";
 import {
   Dialog,
@@ -43,6 +43,7 @@ export default function Documents() {
     defaultValues: {
       documentType: undefined,
       customType: "",
+      additionalInfo: "",
       fileName: "",
       fileData: "",
       tags: [] as string[],
@@ -78,7 +79,7 @@ export default function Documents() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
       });
-      if (!res.ok) throw new Error("Failed to create document");
+      if (!res.ok) throw new Error("Failed to upload document");
       return res.json();
     },
     onSuccess: () => {
@@ -139,12 +140,11 @@ export default function Documents() {
     },
   });
 
-  const onSubmit = (data: any) => {
-    if (editingDocument) {
-      updateMutation.mutate(data);
-    } else {
-      createMutation.mutate(data);
-    }
+  const handleDocumentTypeChange = (type: string) => {
+    form.setValue("documentType", type);
+    // Add default tags based on document type
+    const defaultTags = documentTypeToTags[type] || [];
+    form.setValue("tags", [...defaultTags]);
   };
 
   const handleEdit = (document: Document) => {
@@ -152,11 +152,20 @@ export default function Documents() {
     form.reset({
       documentType: document.documentType,
       customType: document.customType || "",
+      additionalInfo: document.additionalInfo || "",
       fileName: document.fileName,
       fileData: document.fileData,
       tags: document.tags,
     });
     setIsOpen(true);
+  };
+
+  const downloadDocument = (document: Document) => {
+    const linkSource = `data:application/octet-stream;base64,${document.fileData}`;
+    const downloadLink = document.createElement('a');
+    downloadLink.href = linkSource;
+    downloadLink.download = document.fileName;
+    downloadLink.click();
   };
 
   const addTag = () => {
@@ -176,6 +185,16 @@ export default function Documents() {
       currentTags.filter((tag) => tag !== tagToRemove)
     );
   };
+
+  const onSubmit = (data: any) => {
+    if (editingDocument) {
+      updateMutation.mutate(data);
+    } else {
+      createMutation.mutate(data);
+    }
+  };
+
+  const isSubmitting = createMutation.isPending || updateMutation.isPending;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -212,7 +231,7 @@ export default function Documents() {
                       <FormItem>
                         <FormLabel>Document Type</FormLabel>
                         <Select
-                          onValueChange={field.onChange}
+                          onValueChange={handleDocumentTypeChange}
                           defaultValue={field.value}
                         >
                           <FormControl>
@@ -248,6 +267,20 @@ export default function Documents() {
                       )}
                     />
                   )}
+
+                  <FormField
+                    control={form.control}
+                    name="additionalInfo"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Additional Information (Optional)</FormLabel>
+                        <FormControl>
+                          <Input {...field} placeholder="Enter additional details" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
                   <FormField
                     control={form.control}
@@ -300,8 +333,18 @@ export default function Documents() {
                     </div>
                   </div>
 
-                  <Button type="submit" className="w-full">
-                    {editingDocument ? "Update" : "Upload"} Document
+                  <Button type="submit" className="w-full" disabled={isSubmitting}>
+                    {isSubmitting ? (
+                      <div className="flex items-center">
+                        <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        {editingDocument ? "Updating..." : "Uploading..."}
+                      </div>
+                    ) : (
+                      <>{editingDocument ? "Update" : "Upload"} Document</>
+                    )}
                   </Button>
                 </form>
               </Form>
@@ -327,6 +370,11 @@ export default function Documents() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
+                {document.additionalInfo && (
+                  <p className="text-sm text-muted-foreground mb-2">
+                    {document.additionalInfo}
+                  </p>
+                )}
                 <p className="text-sm text-muted-foreground mb-4">
                   {document.fileName}
                 </p>
@@ -346,15 +394,25 @@ export default function Documents() {
                     <Pencil className="h-4 w-4 mr-2" />
                     Edit
                   </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="text-red-500 hover:text-red-600"
-                    onClick={() => deleteMutation.mutate(document.id)}
-                  >
-                    <Trash className="h-4 w-4 mr-2" />
-                    Delete
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => downloadDocument(document)}
+                    >
+                      <Download className="h-4 w-4 mr-2" />
+                      Download
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-red-500 hover:text-red-600"
+                      onClick={() => deleteMutation.mutate(document.id)}
+                    >
+                      <Trash className="h-4 w-4 mr-2" />
+                      Delete
+                    </Button>
+                  </div>
                 </div>
               </CardContent>
             </Card>
