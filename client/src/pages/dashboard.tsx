@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { CreditCard, Wallet, Building2, FileText, CircleDollarSign, KeyRound, Store } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { type CustomerCredit, type Loan } from "@shared/schema";
+import { BackupButton } from "@/components/backup-button";
 
 const tiles = [
   {
@@ -83,6 +84,7 @@ export default function Dashboard() {
         <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
           <h1 className="text-2xl font-bold text-primary">Financial Tracker</h1>
           <div className="flex items-center gap-4">
+            <BackupButton />
             <span className="text-sm text-gray-600">Welcome, {user?.username}</span>
             <button
               onClick={() => logoutMutation.mutate()}

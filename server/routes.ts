@@ -3,6 +3,7 @@ import { createServer, type Server } from "http";
 import { setupAuth } from "./auth";
 import { storage } from "./storage";
 import { insertCreditCardSchema, insertDebitCardSchema, insertBankAccountSchema, insertLoanSchema, insertRepaymentSchema, insertPasswordSchema, insertCustomerCreditSchema, insertExpenseSchema, insertDailySalesSchema, insertDocumentSchema } from "@shared/schema";
+import { getAuthUrl, handleCallback, backupToGoogleDrive } from './google-drive';
 
 export async function registerRoutes(app: Express): Promise<Server> {
   setupAuth(app);
@@ -405,6 +406,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.sendStatus(204);
   });
 
+
+  app.get("/api/google/auth-url", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    try {
+      const url = await getAuthUrl();
+      res.json({ url });
+    } catch (error) {
+      console.error('Failed to get auth URL:', error);
+      res.status(500).json({ message: "Failed to get auth URL" });
+    }
+  });
+
+  app.get("/api/google/callback", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    try {
+      const code = req.query.code as string;
+      const tokens = await handleCallback(code);
+      req.session.googleTokens = tokens;
+      res.redirect('/dashboard');
+    } catch (error) {
+      console.error('Failed to handle callback:', error);
+      res.status(500).json({ message: "Failed to authenticate with Google" });
+    }
+  });
+
+  app.post("/api/backup", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    if (!req.session.googleTokens) {
+      return res.status(401).json({ message: "Google authentication required" });
+    }
+    try {
+      const file = await backupToGoogleDrive(req.user.id);
+      res.json(file);
+    } catch (error) {
+      console.error('Failed to backup:', error);
+      res.status(500).json({ message: "Failed to backup data" });
+    }
+  });
 
   const httpServer = createServer(app);
   return httpServer;
