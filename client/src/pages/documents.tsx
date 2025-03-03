@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { type Document, insertDocumentSchema } from "@shared/schema";
+import { type Document, insertDocumentSchema, documentTypes } from "@shared/schema";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { queryClient } from "@/lib/queryClient";
@@ -9,10 +9,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { FileText, Plus, X, Pencil, Trash } from "lucide-react";
+import { FileText, Plus, X, Pencil, Trash, Upload } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -31,7 +30,6 @@ import {
 
 export default function Documents() {
   const [isOpen, setIsOpen] = useState(false);
-  const [selectedType, setSelectedType] = useState<string>("all");
   const [editingDocument, setEditingDocument] = useState<Document | null>(null);
   const { toast } = useToast();
 
@@ -42,13 +40,35 @@ export default function Documents() {
   const form = useForm({
     resolver: zodResolver(insertDocumentSchema),
     defaultValues: {
-      title: "",
-      description: "",
-      type: "personal",
-      fileUrl: "",
+      documentType: undefined,
+      customType: "",
+      fileName: "",
+      fileData: "",
       tags: [] as string[],
     },
   });
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) { // 5MB limit
+      toast({
+        title: "File too large",
+        description: "Please upload a file smaller than 5MB",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const base64 = reader.result as string;
+      form.setValue("fileData", base64.split(",")[1]); // Remove data URL prefix
+      form.setValue("fileName", file.name);
+    };
+    reader.readAsDataURL(file);
+  };
 
   const createMutation = useMutation({
     mutationFn: async (data: any) => {
@@ -62,13 +82,13 @@ export default function Documents() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/documents"] });
-      toast({ title: "Document created successfully" });
+      toast({ title: "Document uploaded successfully" });
       setIsOpen(false);
       form.reset();
     },
     onError: () => {
       toast({
-        title: "Failed to create document",
+        title: "Failed to upload document",
         variant: "destructive",
       });
     },
@@ -129,10 +149,10 @@ export default function Documents() {
   const handleEdit = (document: Document) => {
     setEditingDocument(document);
     form.reset({
-      title: document.title,
-      description: document.description || "",
-      type: document.type,
-      fileUrl: document.fileUrl,
+      documentType: document.documentType,
+      customType: document.customType || "",
+      fileName: document.fileName,
+      fileData: document.fileData,
       tags: document.tags,
     });
     setIsOpen(true);
@@ -156,10 +176,6 @@ export default function Documents() {
     );
   };
 
-  const filteredDocuments = selectedType === "all"
-    ? documents
-    : documents?.filter((doc) => doc.type === selectedType);
-
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white border-b">
@@ -175,74 +191,80 @@ export default function Documents() {
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>
-                  {editingDocument ? "Edit Document" : "Add New Document"}
+                  {editingDocument ? "Edit Document" : "Upload Document"}
                 </DialogTitle>
               </DialogHeader>
               <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                   <FormField
                     control={form.control}
-                    name="title"
+                    name="documentType"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Title</FormLabel>
-                        <FormControl>
-                          <Input {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="description"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Description</FormLabel>
-                        <FormControl>
-                          <Textarea {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="type"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Type</FormLabel>
+                        <FormLabel>Document Type</FormLabel>
                         <Select
                           onValueChange={field.onChange}
                           defaultValue={field.value}
                         >
                           <FormControl>
                             <SelectTrigger>
-                              <SelectValue placeholder="Select type" />
+                              <SelectValue placeholder="Select document type" />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            <SelectItem value="personal">Personal</SelectItem>
-                            <SelectItem value="business">Business</SelectItem>
+                            {documentTypes.map((type) => (
+                              <SelectItem key={type} value={type}>
+                                {type}
+                              </SelectItem>
+                            ))}
                           </SelectContent>
                         </Select>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
+
+                  {form.watch("documentType") === "Other" && (
+                    <FormField
+                      control={form.control}
+                      name="customType"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Specify Document Type</FormLabel>
+                          <FormControl>
+                            <Input {...field} placeholder="Enter document type" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  )}
+
                   <FormField
                     control={form.control}
-                    name="fileUrl"
+                    name="fileData"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>File URL</FormLabel>
+                        <FormLabel>Upload File</FormLabel>
                         <FormControl>
-                          <Input {...field} />
+                          <div className="flex flex-col gap-2">
+                            <Input
+                              type="file"
+                              onChange={handleFileUpload}
+                              accept=".pdf,.jpg,.jpeg,.png"
+                            />
+                            {field.value && (
+                              <p className="text-sm text-muted-foreground">
+                                File uploaded: {form.watch("fileName")}
+                              </p>
+                            )}
+                          </div>
                         </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
+
                   <div className="space-y-2">
                     <Label>Tags</Label>
                     <div className="flex flex-wrap gap-2 mb-2">
@@ -268,8 +290,9 @@ export default function Documents() {
                       </Button>
                     </div>
                   </div>
+
                   <Button type="submit" className="w-full">
-                    {editingDocument ? "Update" : "Create"} Document
+                    {editingDocument ? "Update" : "Upload"} Document
                   </Button>
                 </form>
               </Form>
@@ -279,35 +302,24 @@ export default function Documents() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 py-8">
-        <div className="mb-6">
-          <Label>Filter by Type</Label>
-          <Select onValueChange={setSelectedType} defaultValue="all">
-            <SelectTrigger className="w-48">
-              <SelectValue placeholder="All Documents" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Documents</SelectItem>
-              <SelectItem value="personal">Personal</SelectItem>
-              <SelectItem value="business">Business</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredDocuments?.map((document) => (
+          {documents?.map((document) => (
             <Card key={document.id}>
               <CardHeader>
                 <CardTitle className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <FileText className="h-5 w-5 text-primary" />
-                    <span>{document.title}</span>
+                    <span>
+                      {document.documentType === "Other"
+                        ? document.customType
+                        : document.documentType}
+                    </span>
                   </div>
-                  <Badge>{document.type}</Badge>
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <p className="text-sm text-muted-foreground mb-4">
-                  {document.description}
+                  {document.fileName}
                 </p>
                 <div className="flex flex-wrap gap-2 mb-4">
                   {document.tags.map((tag) => (

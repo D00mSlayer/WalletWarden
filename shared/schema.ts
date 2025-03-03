@@ -2,6 +2,21 @@ import { pgTable, text, serial, integer, boolean, timestamp, decimal, jsonb } fr
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
+export const documentTypes = [
+  "Aadhaar Card",
+  "Aadhaar Card (Masked)",
+  "PAN Card",
+  "Driving License",
+  "Passport",
+  "Rental Agreement",
+  "Vehicle Insurance",
+  "Vehicle Registration Certificate",
+  "COVID-19 Certificate",
+  "Electricity Bill",
+  "Business Registration Certificate",
+  "Other"
+] as const;
+
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   username: text("username").notNull().unique(),
@@ -414,27 +429,35 @@ export type DailySales = typeof dailySales.$inferSelect;
 export type InsertDailySales = z.infer<typeof insertDailySalesSchema>;
 export type Share = z.infer<typeof shareSchema>;
 
-// Add after the existing schemas
+// Add this near the top with other constants
 export const documents = pgTable("documents", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").notNull(),
-  title: text("title").notNull(),
-  description: text("description"),
-  type: text("type").notNull(), // personal or business
-  fileUrl: text("file_url").notNull(),
+  documentType: text("document_type").notNull(),
+  customType: text("custom_type"), // For "Other" document type
+  fileName: text("file_name").notNull(),
+  fileData: text("file_data").notNull(), // Base64 encoded file data
   tags: text("tags").array().notNull().default([]),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at"),
 });
 
 export const insertDocumentSchema = z.object({
-  title: z.string().min(1, "Title is required"),
-  description: z.string().optional(),
-  type: z.enum(["personal", "business"], {
+  documentType: z.enum(documentTypes, {
     required_error: "Please select document type",
   }),
-  fileUrl: z.string().min(1, "File URL is required"),
+  customType: z.string().optional(),
+  fileName: z.string().min(1, "File is required"),
+  fileData: z.string().min(1, "File data is required"),
   tags: z.array(z.string()).default([]),
+}).superRefine((data, ctx) => {
+  if (data.documentType === "Other" && !data.customType) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Please specify the document type",
+      path: ["customType"],
+    });
+  }
 });
 
 export type Document = typeof documents.$inferSelect;
