@@ -31,7 +31,7 @@ import {
 
 export default function Documents() {
   const [isOpen, setIsOpen] = useState(false);
-  const [selectedType, setSelectedType] = useState<string | null>(null);
+  const [selectedType, setSelectedType] = useState<string>("all");
   const [editingDocument, setEditingDocument] = useState<Document | null>(null);
   const { toast } = useToast();
 
@@ -139,10 +139,12 @@ export default function Documents() {
   };
 
   const addTag = () => {
-    const tag = form.watch("newTag");
-    if (!tag) return;
+    const newTag = form.watch("newTag");
+    if (!newTag) return;
     const currentTags = form.watch("tags") || [];
-    form.setValue("tags", [...currentTags, tag]);
+    if (!currentTags.includes(newTag)) {
+      form.setValue("tags", [...currentTags, newTag]);
+    }
     form.setValue("newTag", "");
   };
 
@@ -154,9 +156,9 @@ export default function Documents() {
     );
   };
 
-  const filteredDocuments = selectedType
-    ? documents?.filter((doc) => doc.type === selectedType)
-    : documents;
+  const filteredDocuments = selectedType === "all"
+    ? documents
+    : documents?.filter((doc) => doc.type === selectedType);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -243,7 +245,7 @@ export default function Documents() {
                   />
                   <div className="space-y-2">
                     <Label>Tags</Label>
-                    <div className="flex gap-2 mb-2">
+                    <div className="flex flex-wrap gap-2 mb-2">
                       {form.watch("tags")?.map((tag) => (
                         <Badge key={tag} variant="secondary">
                           {tag}
@@ -256,7 +258,8 @@ export default function Documents() {
                     </div>
                     <div className="flex gap-2">
                       <Input
-                        {...form.register("newTag")}
+                        value={form.watch("newTag") || ""}
+                        onChange={(e) => form.setValue("newTag", e.target.value)}
                         placeholder="Add tag"
                         onKeyPress={(e) => e.key === "Enter" && (e.preventDefault(), addTag())}
                       />
@@ -278,12 +281,12 @@ export default function Documents() {
       <main className="max-w-7xl mx-auto px-4 py-8">
         <div className="mb-6">
           <Label>Filter by Type</Label>
-          <Select onValueChange={(value) => setSelectedType(value || null)}>
+          <Select onValueChange={setSelectedType} defaultValue="all">
             <SelectTrigger className="w-48">
               <SelectValue placeholder="All Documents" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">All Documents</SelectItem>
+              <SelectItem value="all">All Documents</SelectItem>
               <SelectItem value="personal">Personal</SelectItem>
               <SelectItem value="business">Business</SelectItem>
             </SelectContent>
