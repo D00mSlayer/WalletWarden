@@ -19,6 +19,8 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  DialogDescription,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import {
   Form,
@@ -29,9 +31,19 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 
+function formatFileSize(bytes: number): string {
+  if (bytes === 0) return '0 Bytes';
+  const k = 1024;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
 export default function Documents() {
   const [isOpen, setIsOpen] = useState(false);
   const [editingDocument, setEditingDocument] = useState<Document | null>(null);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [documentToDelete, setDocumentToDelete] = useState<Document | null>(null);
   const { toast } = useToast();
 
   const { data: documents } = useQuery<Document[]>({
@@ -131,6 +143,8 @@ export default function Documents() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/documents"] });
       toast({ title: "Document deleted successfully" });
+      setDeleteConfirmOpen(false);
+      setDocumentToDelete(null);
     },
     onError: () => {
       toast({
@@ -161,13 +175,47 @@ export default function Documents() {
   };
 
   const downloadDocument = (doc: Document) => {
-    // Create a temporary anchor element
-    const a = window.document.createElement('a');
-    a.href = `data:application/octet-stream;base64,${doc.fileData}`;
-    a.download = doc.fileName;
-    window.document.body.appendChild(a);
-    a.click();
-    window.document.body.removeChild(a);
+    try {
+      const byteCharacters = atob(doc.fileData);
+      const byteArrays = [];
+
+      for (let offset = 0; offset < byteCharacters.length; offset += 512) {
+        const slice = byteCharacters.slice(offset, offset + 512);
+        const byteNumbers = new Array(slice.length);
+        for (let i = 0; i < slice.length; i++) {
+          byteNumbers[i] = slice.charCodeAt(i);
+        }
+        const byteArray = new Uint8Array(byteNumbers);
+        byteArrays.push(byteArray);
+      }
+
+      const blob = new Blob(byteArrays, { type: 'application/octet-stream' });
+      const url = window.URL.createObjectURL(blob);
+      const a = window.document.createElement('a');
+      a.href = url;
+      a.download = doc.fileName;
+      window.document.body.appendChild(a);
+      a.click();
+      window.document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      toast({
+        title: "Failed to download document",
+        description: "Please try again",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDelete = (document: Document) => {
+    setDocumentToDelete(document);
+    setDeleteConfirmOpen(true);
+  };
+
+  const confirmDelete = () => {
+    if (documentToDelete) {
+      deleteMutation.mutate(documentToDelete.id);
+    }
   };
 
   const addTag = () => {
@@ -377,7 +425,7 @@ export default function Documents() {
                   </p>
                 )}
                 <p className="text-sm text-muted-foreground mb-4">
-                  {document.fileName}
+                  {document.fileName} • {formatFileSize(document.fileData.length * 0.75)}
                 </p>
                 <div className="flex flex-wrap gap-2 mb-4">
                   {document.tags.map((tag) => (
@@ -408,7 +456,7 @@ export default function Documents() {
                       variant="outline"
                       size="sm"
                       className="text-red-500 hover:text-red-600"
-                      onClick={() => deleteMutation.mutate(document.id)}
+                      onClick={() => handleDelete(document)}
                     >
                       <Trash className="h-4 w-4 mr-2" />
                       Delete
@@ -420,6 +468,29 @@ export default function Documents() {
           ))}
         </div>
       </main>
+
+      <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Document</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this document? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteConfirmOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={confirmDelete}
+              disabled={deleteMutation.isPending}
+            >
+              {deleteMutation.isPending ? "Deleting..." : "Delete"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
