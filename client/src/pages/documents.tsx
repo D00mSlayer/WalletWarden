@@ -11,7 +11,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { FileText, Plus, X, Pencil, Trash, Upload } from "lucide-react";
+import { FileText, Plus, X, Pencil, Trash, ChevronLeft } from "lucide-react";
+import { Link } from "wouter";
 import {
   Dialog,
   DialogContent,
@@ -180,7 +181,15 @@ export default function Documents() {
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white border-b">
         <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
-          <h1 className="text-2xl font-bold text-primary">Documents</h1>
+          <div className="flex items-center gap-4">
+            <Link href="/" className="text-primary hover:text-primary/90">
+              <Button variant="ghost" size="sm">
+                <ChevronLeft className="h-4 w-4 mr-2" />
+                Back
+              </Button>
+            </Link>
+            <h1 className="text-2xl font-bold text-primary">Documents</h1>
+          </div>
           <Dialog open={isOpen} onOpenChange={setIsOpen}>
             <DialogTrigger asChild>
               <Button>
