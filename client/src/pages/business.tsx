@@ -1,6 +1,9 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Link } from "wouter";
 import { Store, UserSquare2, Receipt, LineChart, BarChart3 } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { Badge } from "@/components/ui/badge";
+import { type CustomerCredit } from "@shared/schema";
 
 const sections = [
   {
@@ -9,6 +12,7 @@ const sections = [
     href: "/business/credits",
     icon: UserSquare2,
     color: "text-blue-500",
+    showBadge: true,
   },
   {
     title: "Expenses",
@@ -34,6 +38,20 @@ const sections = [
 ];
 
 export default function Business() {
+  // Fetch pending customer credits
+  const { data: credits } = useQuery<CustomerCredit[]>({
+    queryKey: ["/api/business/credits"],
+  });
+
+  // Calculate pending credits count
+  const pendingCredits = credits?.filter(credit => credit.status === "pending").length || 0;
+
+  // Get badge count for sections
+  const getBadgeCount = (title: string) => {
+    if (title === "Customer Credits") return pendingCredits;
+    return 0;
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white border-b">
@@ -54,6 +72,11 @@ export default function Business() {
                   <CardTitle className="flex items-center gap-3">
                     <section.icon className={`h-6 w-6 ${section.color}`} />
                     <span>{section.title}</span>
+                    {section.showBadge && getBadgeCount(section.title) > 0 && (
+                      <Badge variant="secondary" className="ml-2">
+                        {getBadgeCount(section.title)}
+                      </Badge>
+                    )}
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
