@@ -160,12 +160,14 @@ export default function Documents() {
     setIsOpen(true);
   };
 
-  const downloadDocument = (document: Document) => {
-    const linkSource = `data:application/octet-stream;base64,${document.fileData}`;
-    const downloadLink = document.createElement('a');
-    downloadLink.href = linkSource;
-    downloadLink.download = document.fileName;
-    downloadLink.click();
+  const downloadDocument = (doc: Document) => {
+    // Create a temporary anchor element
+    const a = window.document.createElement('a');
+    a.href = `data:application/octet-stream;base64,${doc.fileData}`;
+    a.download = doc.fileName;
+    window.document.body.appendChild(a);
+    a.click();
+    window.document.body.removeChild(a);
   };
 
   const addTag = () => {
@@ -201,10 +203,9 @@ export default function Documents() {
       <header className="bg-white border-b">
         <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
           <div className="flex items-center gap-4">
-            <Link href="/" className="text-primary hover:text-primary/90">
-              <Button variant="ghost" size="sm">
-                <ChevronLeft className="h-4 w-4 mr-2" />
-                Back
+            <Link href="/">
+              <Button variant="ghost" size="icon">
+                <ChevronLeft className="h-4 w-4" />
               </Button>
             </Link>
             <h1 className="text-2xl font-bold text-primary">Documents</h1>
