@@ -1,0 +1,16 @@
+{
+  "appId": "com.financialtracker.app",
+  "appName": "Financial Tracker",
+  "webDir": "dist",
+  "server": {
+    "androidScheme": "https"
+  },
+  "android": {
+    "buildOptions": {
+      "keystorePath": null,
+      "keystorePassword": null,
+      "keystoreAlias": null,
+      "keystoreAliasPassword": null
+    }
+  }
+}
