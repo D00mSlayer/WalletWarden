@@ -1,7 +1,10 @@
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/hooks/use-auth";
 import { Link } from "wouter";
+import { useQuery } from "@tanstack/react-query";
 import { CreditCard, Wallet, Building2, FileText, CircleDollarSign, KeyRound, Store } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { type CustomerCredit, type Loan } from "@shared/schema";
 
 const tiles = [
   {
@@ -27,12 +30,14 @@ const tiles = [
     icon: CircleDollarSign,
     href: "/loans",
     color: "text-orange-500",
+    showBadge: true,
   },
   {
     title: "Business",
     icon: Store,
     href: "/business",
     color: "text-pink-500",
+    showBadge: true,
   },
   {
     title: "Documents",
@@ -50,6 +55,27 @@ const tiles = [
 
 export default function Dashboard() {
   const { user, logoutMutation } = useAuth();
+
+  // Fetch pending loans
+  const { data: loans } = useQuery<Loan[]>({
+    queryKey: ["/api/loans"],
+  });
+
+  // Fetch pending customer credits
+  const { data: credits } = useQuery<CustomerCredit[]>({
+    queryKey: ["/api/business/credits"],
+  });
+
+  // Calculate pending counts
+  const pendingLoans = loans?.filter(loan => loan.status === "active").length || 0;
+  const pendingCredits = credits?.filter(credit => credit.status === "pending").length || 0;
+
+  // Get badge count for business section (customer credits)
+  const getBadgeCount = (title: string) => {
+    if (title === "Loans") return pendingLoans;
+    if (title === "Business") return pendingCredits;
+    return 0;
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -79,6 +105,11 @@ export default function Dashboard() {
                   <CardTitle className="flex items-center gap-3">
                     <tile.icon className={`h-6 w-6 ${tile.color}`} />
                     <span>{tile.title}</span>
+                    {tile.showBadge && getBadgeCount(tile.title) > 0 && (
+                      <Badge variant="secondary" className="ml-2">
+                        {getBadgeCount(tile.title)}
+                      </Badge>
+                    )}
                   </CardTitle>
                 </CardHeader>
               </Card>
