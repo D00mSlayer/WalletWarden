@@ -17,6 +17,7 @@ import CustomerCredits from "@/pages/business/credits";
 import Expenses from "@/pages/business/expenses";
 import Sales from "@/pages/business/sales";
 import Analytics from "@/pages/business/analytics";
+import Documents from "@/pages/documents";
 
 function Router() {
   return (
@@ -28,6 +29,7 @@ function Router() {
       <ProtectedRoute path="/bank-accounts" component={BankAccounts} />
       <ProtectedRoute path="/loans" component={Loans} />
       <ProtectedRoute path="/passwords" component={Passwords} />
+      <ProtectedRoute path="/documents" component={Documents} />
       <ProtectedRoute path="/business" component={Business} />
       <ProtectedRoute path="/business/credits" component={CustomerCredits} />
       <ProtectedRoute path="/business/expenses" component={Expenses} />

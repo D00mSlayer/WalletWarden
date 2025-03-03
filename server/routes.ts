@@ -2,9 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { setupAuth } from "./auth";
 import { storage } from "./storage";
-import { insertCreditCardSchema, insertDebitCardSchema, insertBankAccountSchema, insertLoanSchema, insertRepaymentSchema, insertPasswordSchema, insertCustomerCreditSchema, insertExpenseSchema } from "@shared/schema";
-import {insertDailySalesSchema} from "@shared/schema"; 
-
+import { insertCreditCardSchema, insertDebitCardSchema, insertBankAccountSchema, insertLoanSchema, insertRepaymentSchema, insertPasswordSchema, insertCustomerCreditSchema, insertExpenseSchema, insertDailySalesSchema, insertDocumentSchema } from "@shared/schema";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   setupAuth(app);
@@ -368,6 +366,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Failed to delete sales record" });
     }
   });
+
+  // Document Routes
+  app.get("/api/documents", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    const documents = await storage.getDocuments(req.user.id);
+    res.json(documents);
+  });
+
+  app.post("/api/documents", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    const parsed = insertDocumentSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json(parsed.error);
+
+    const document = await storage.createDocument(req.user.id, parsed.data);
+    res.status(201).json(document);
+  });
+
+  app.patch("/api/documents/:id", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    const parsed = insertDocumentSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json(parsed.error);
+
+    const document = await storage.getDocument(parseInt(req.params.id));
+    if (!document || document.userId !== req.user.id) return res.sendStatus(404);
+
+    const updated = await storage.updateDocument(document.id, parsed.data);
+    res.json(updated);
+  });
+
+  app.delete("/api/documents/:id", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+
+    const document = await storage.getDocument(parseInt(req.params.id));
+    if (!document || document.userId !== req.user.id) return res.sendStatus(404);
+
+    await storage.deleteDocument(document.id);
+    res.sendStatus(204);
+  });
+
 
   const httpServer = createServer(app);
   return httpServer;

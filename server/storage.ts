@@ -1,4 +1,4 @@
-import { User, InsertUser, CreditCard, InsertCreditCard, DebitCard, InsertDebitCard, BankAccount, InsertBankAccount, Loan, InsertLoan, Repayment, InsertRepayment, Password, InsertPassword, CustomerCredit, InsertCustomerCredit, DailySales, InsertDailySales, Expense, InsertExpense } from "@shared/schema";
+import { User, InsertUser, CreditCard, InsertCreditCard, DebitCard, InsertDebitCard, BankAccount, InsertBankAccount, Loan, InsertLoan, Repayment, InsertRepayment, Password, InsertPassword, CustomerCredit, InsertCustomerCredit, DailySales, InsertDailySales, Expense, InsertExpense, Document, InsertDocument } from "@shared/schema";
 import session from "express-session";
 import createMemoryStore from "memorystore";
 
@@ -62,6 +62,13 @@ export interface IStorage {
   getExpense(id: number): Promise<Expense | undefined>;
   createExpense(userId: number, expense: InsertExpense): Promise<Expense>;
   deleteExpense(id: number): Promise<void>;
+
+  // Document methods
+  getDocuments(userId: number): Promise<Document[]>;
+  getDocument(id: number): Promise<Document | undefined>;
+  createDocument(userId: number, document: InsertDocument): Promise<Document>;
+  updateDocument(id: number, document: InsertDocument): Promise<Document>;
+  deleteDocument(id: number): Promise<void>;
 }
 
 export class MemStorage implements IStorage {
@@ -75,6 +82,7 @@ export class MemStorage implements IStorage {
   private customerCredits: Map<number, CustomerCredit>;
   private dailySales: Map<number, DailySales>;
   private expenses: Map<number, Expense>;
+  private documents: Map<number, Document>;
   private currentUserId: number;
   private currentCardId: number;
   private currentAccountId: number;
@@ -84,6 +92,7 @@ export class MemStorage implements IStorage {
   private currentCustomerCreditId: number;
   private currentDailySalesId: number;
   private currentExpenseId: number;
+  private currentDocumentId: number;
   sessionStore: session.Store;
 
   constructor() {
@@ -97,6 +106,7 @@ export class MemStorage implements IStorage {
     this.customerCredits = new Map();
     this.dailySales = new Map();
     this.expenses = new Map();
+    this.documents = new Map();
     this.currentUserId = 1;
     this.currentCardId = 1;
     this.currentAccountId = 1;
@@ -106,6 +116,7 @@ export class MemStorage implements IStorage {
     this.currentCustomerCreditId = 1;
     this.currentDailySalesId = 1;
     this.currentExpenseId = 1;
+    this.currentDocumentId = 1;
     this.sessionStore = new MemoryStore({
       checkPeriod: 86400000,
     });
@@ -452,6 +463,48 @@ export class MemStorage implements IStorage {
 
   async deleteExpense(id: number): Promise<void> {
     this.expenses.delete(id);
+  }
+
+  async getDocuments(userId: number): Promise<Document[]> {
+    return Array.from(this.documents.values()).filter(
+      (doc) => doc.userId === userId,
+    );
+  }
+
+  async getDocument(id: number): Promise<Document | undefined> {
+    return this.documents.get(id);
+  }
+
+  async createDocument(userId: number, document: InsertDocument): Promise<Document> {
+    const id = this.currentDocumentId++;
+    const newDocument: Document = {
+      ...document,
+      id,
+      userId,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      description: document.description || null,
+    };
+    this.documents.set(id, newDocument);
+    return newDocument;
+  }
+
+  async updateDocument(id: number, document: InsertDocument): Promise<Document> {
+    const existing = await this.getDocument(id);
+    if (!existing) throw new Error("Document not found");
+
+    const updated: Document = {
+      ...existing,
+      ...document,
+      updatedAt: new Date(),
+      description: document.description || null,
+    };
+    this.documents.set(id, updated);
+    return updated;
+  }
+
+  async deleteDocument(id: number): Promise<void> {
+    this.documents.delete(id);
   }
 }
 

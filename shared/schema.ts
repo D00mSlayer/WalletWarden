@@ -413,3 +413,29 @@ export type InsertFixedExpense = z.infer<typeof insertFixedExpenseSchema>;
 export type DailySales = typeof dailySales.$inferSelect;
 export type InsertDailySales = z.infer<typeof insertDailySalesSchema>;
 export type Share = z.infer<typeof shareSchema>;
+
+// Add after the existing schemas
+export const documents = pgTable("documents", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  title: text("title").notNull(),
+  description: text("description"),
+  type: text("type").notNull(), // personal or business
+  fileUrl: text("file_url").notNull(),
+  tags: text("tags").array().notNull().default([]),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at"),
+});
+
+export const insertDocumentSchema = z.object({
+  title: z.string().min(1, "Title is required"),
+  description: z.string().optional(),
+  type: z.enum(["personal", "business"], {
+    required_error: "Please select document type",
+  }),
+  fileUrl: z.string().min(1, "File URL is required"),
+  tags: z.array(z.string()).default([]),
+});
+
+export type Document = typeof documents.$inferSelect;
+export type InsertDocument = z.infer<typeof insertDocumentSchema>;
