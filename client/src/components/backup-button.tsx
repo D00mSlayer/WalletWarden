@@ -52,6 +52,11 @@ export function BackupButton({ className }: { className?: string }) {
     });
   };
 
+  const handleClick = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent dropdown from closing
+    initiateBackup();
+  };
+
   const initiateBackup = async () => {
     try {
       setIsLoading(true);
@@ -69,6 +74,8 @@ export function BackupButton({ className }: { className?: string }) {
 
         // For mobile devices, open in current window
         if (/Android|webOS|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+          // Store a flag in sessionStorage to indicate we're in the middle of a backup
+          sessionStorage.setItem('pendingBackup', 'true');
           window.location.href = url;
           return; // Don't set loading false as we're redirecting
         }
@@ -108,7 +115,7 @@ export function BackupButton({ className }: { className?: string }) {
     <Button
       variant="ghost"
       size="sm"
-      onClick={initiateBackup}
+      onClick={handleClick}
       disabled={isLoading}
       className={className}
     >

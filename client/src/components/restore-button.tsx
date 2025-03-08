@@ -98,6 +98,11 @@ export function RestoreButton({ className }: { className?: string }) {
     }
   };
 
+  const handleTriggerClick = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent dropdown from closing
+    setDialogOpen(true);
+  };
+
   return (
     <AlertDialog open={dialogOpen} onOpenChange={setDialogOpen}>
       <AlertDialogTrigger asChild>
@@ -106,6 +111,7 @@ export function RestoreButton({ className }: { className?: string }) {
           size="sm"
           disabled={isLoading}
           className={className}
+          onClick={handleTriggerClick}
         >
           {isLoading ? (
             <>

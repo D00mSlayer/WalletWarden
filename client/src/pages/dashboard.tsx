@@ -2,7 +2,7 @@ import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/hooks/use-auth";
 import { Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-import { CreditCard, Wallet, Building2, FileText, CircleDollarSign, KeyRound, Store, Settings2 } from "lucide-react";
+import { CreditCard, Wallet, Building2, FileText, CircleDollarSign, KeyRound, Store, Settings2, LogOut } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { type CustomerCredit, type Loan } from "@shared/schema";
 import { BackupButton } from "@/components/backup-button";
@@ -12,6 +12,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 
@@ -99,17 +100,19 @@ export default function Dashboard() {
                   Settings
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
+              <DropdownMenuContent align="end" className="w-48">
                 <DropdownMenuItem className="p-0">
                   <BackupButton className="w-full justify-start" />
                 </DropdownMenuItem>
                 <DropdownMenuItem className="p-0">
                   <RestoreButton className="w-full justify-start" />
                 </DropdownMenuItem>
+                <DropdownMenuSeparator />
                 <DropdownMenuItem
-                  className="text-red-600 hover:text-red-700 cursor-pointer"
+                  className="text-red-600 hover:text-red-700 cursor-pointer flex items-center"
                   onClick={() => logoutMutation.mutate()}
                 >
+                  <LogOut className="h-4 w-4 mr-2" />
                   Logout
                 </DropdownMenuItem>
               </DropdownMenuContent>
