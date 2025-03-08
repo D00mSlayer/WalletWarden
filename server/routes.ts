@@ -302,6 +302,90 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.sendStatus(204);
   });
 
+  // Add this route after the existing expense routes
+  app.post("/api/business/expenses/import-csv", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    console.log("[API] Importing expenses from CSV");
+
+    try {
+      const rows = req.body.data;
+      const results = [];
+      const errors = [];
+
+      for (const [index, row] of rows.entries()) {
+        try {
+          // Parse date (supports both mm/dd/yyyy and mm-dd-yyyy formats)
+          const dateParts = row[2].split(/[-/]/);
+          const date = new Date(
+            parseInt(dateParts[2]), // year
+            parseInt(dateParts[0]) - 1, // month (0-based)
+            parseInt(dateParts[1]) // day
+          ).toISOString();
+
+          // Parse amounts
+          const paidByMe = parseFloat(row[4]) || 0;
+          const paidByBina = parseFloat(row[5]) || 0;
+          const paidByBusiness = parseFloat(row[6]) || 0;
+
+          // For each non-zero amount, create a separate expense entry
+          if (paidByMe > 0) {
+            const data = {
+              category: row[0],
+              description: row[1] || "",
+              date,
+              amount: paidByMe,
+              isSharedExpense: false,
+              paidBy: "Personal",
+              paymentMethod: "Cash", // Default since not specified in CSV
+              notes: row[7] || "",
+            };
+            const expense = await storage.createExpense(req.user.id, data);
+            results.push(expense);
+          }
+
+          if (paidByBina > 0) {
+            const data = {
+              category: row[0],
+              description: row[1] || "",
+              date,
+              amount: paidByBina,
+              isSharedExpense: false,
+              paidBy: "Other",
+              payerName: "Bina",
+              paymentMethod: "Cash", // Default since not specified in CSV
+              notes: row[7] || "",
+            };
+            const expense = await storage.createExpense(req.user.id, data);
+            results.push(expense);
+          }
+
+          if (paidByBusiness > 0) {
+            const data = {
+              category: row[0],
+              description: row[1] || "",
+              date,
+              amount: paidByBusiness,
+              isSharedExpense: false,
+              paidBy: "Business",
+              paymentMethod: "Cash", // Default since not specified in CSV
+              notes: row[7] || "",
+            };
+            const expense = await storage.createExpense(req.user.id, data);
+            results.push(expense);
+          }
+        } catch (error) {
+          console.error(`[API] Error importing row ${index + 1}:`, error);
+          errors.push(`Row ${index + 1}: ${error.message}`);
+        }
+      }
+
+      res.json({ success: true, imported: results.length, errors });
+    } catch (error) {
+      console.error("[API] Error importing CSV:", error);
+      res.status(500).json({ message: "Failed to import CSV data" });
+    }
+  });
+
   // Daily Sales Routes
   app.get("/api/business/sales", async (req, res) => {
     if (!req.isAuthenticated()) return res.sendStatus(401);
@@ -367,6 +451,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Failed to delete sales record" });
     }
   });
+
+  // Add this route after the existing daily sales routes
+  app.post("/api/business/sales/import-csv", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    console.log("[API] Importing daily sales from CSV");
+
+    try {
+      const rows = req.body.data;
+      const results = [];
+      const errors = [];
+
+      for (const [index, row] of rows.entries()) {
+        try {
+          // Parse date (supports both mm/dd/yyyy and mm-dd-yyyy formats)
+          const dateParts = row[0].split(/[-/]/);
+          const date = new Date(
+            parseInt(dateParts[2]), // year
+            parseInt(dateParts[0]) - 1, // month (0-based)
+            parseInt(dateParts[1]) // day
+          ).toISOString();
+
+          const data = {
+            date,
+            upiAmount: parseFloat(row[1]) || 0,
+            cashAmount: parseFloat(row[2]) || 0,
+            cardAmount: parseFloat(row[3]) || 0,
+            notes: "",
+          };
+
+          const sales = await storage.createDailySales(req.user.id, data);
+          results.push(sales);
+        } catch (error) {
+          console.error(`[API] Error importing row ${index + 1}:`, error);
+          errors.push(`Row ${index + 1}: ${error.message}`);
+        }
+      }
+
+      res.json({ success: true, imported: results.length, errors });
+    } catch (error) {
+      console.error("[API] Error importing CSV:", error);
+      res.status(500).json({ message: "Failed to import CSV data" });
+    }
+  });
+
 
   // Document Routes
   app.get("/api/documents", async (req, res) => {

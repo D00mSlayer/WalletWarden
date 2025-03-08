@@ -27,11 +27,11 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { insertDailySalesSchema, type DailySales } from "@shared/schema";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Loader2, PlusCircle, Trash2, IndianRupee, Calendar, Edit2 } from "lucide-react";
+import { Loader2, PlusCircle, Trash2, IndianRupee, Calendar, Edit2, Upload } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "wouter";
 import { format } from "date-fns";
-import { useState } from "react";
+import { useState } from 'react';
 
 function SalesForm({ onSubmit, defaultValues, onCancel }: any) {
   const { toast } = useToast();
@@ -268,10 +268,109 @@ function SalesCard({ sales, onEdit, onDelete }: { sales: DailySales; onEdit: () 
   );
 }
 
+function ImportCSVDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
+  const { toast } = useToast();
+  const [isImporting, setIsImporting] = useState(false);
+
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setIsImporting(true);
+    const reader = new FileReader();
+
+    reader.onload = async (e) => {
+      try {
+        const text = e.target?.result as string;
+        const rows = text.split('\n')
+          .map(row => row.split(',').map(cell => cell.trim()))
+          .filter(row => row.length >= 4); // Ensure we have at least date and amounts
+
+        const response = await apiRequest(
+          "POST",
+          "/api/business/sales/import-csv",
+          { data: rows }
+        );
+
+        if (!response.ok) {
+          throw new Error("Failed to import CSV");
+        }
+
+        const result = await response.json();
+
+        if (result.errors.length > 0) {
+          toast({
+            title: "Import completed with errors",
+            description: `Imported ${result.imported} records. ${result.errors.length} errors occurred.`,
+            variant: "destructive",
+          });
+        } else {
+          toast({
+            title: "Import successful",
+            description: `Successfully imported ${result.imported} records.`,
+          });
+        }
+
+        queryClient.invalidateQueries({ queryKey: ["/api/business/sales"] });
+        onOpenChange(false);
+      } catch (error) {
+        toast({
+          title: "Import failed",
+          description: error instanceof Error ? error.message : "Failed to import CSV",
+          variant: "destructive",
+        });
+      } finally {
+        setIsImporting(false);
+      }
+    };
+
+    reader.readAsText(file);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Import Daily Sales from CSV</DialogTitle>
+          <DialogDescription>
+            Upload a CSV file with the following columns:
+            <br />
+            Date (MM/DD/YYYY), UPI Amount, Cash Amount, Card Amount
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div>
+            <Label htmlFor="csvFile">Select CSV File</Label>
+            <Input
+              id="csvFile"
+              type="file"
+              accept=".csv"
+              onChange={handleFileChange}
+              disabled={isImporting}
+            />
+          </div>
+          {isImporting && (
+            <div className="flex items-center justify-center">
+              <Loader2 className="h-6 w-6 animate-spin" />
+              <span className="ml-2">Importing...</span>
+            </div>
+          )}
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export default function Sales() {
   const { toast } = useToast();
   const [isOpen, setIsOpen] = useState(false);
   const [selectedSales, setSelectedSales] = useState<DailySales | null>(null);
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
 
   const { data: sales, isLoading } = useQuery<DailySales[]>({
     queryKey: ["/api/business/sales"],
@@ -332,7 +431,7 @@ export default function Sales() {
     },
   });
 
-  const deleteSalesMutation = useMutation({
+  const deleteMutation = useMutation({
     mutationFn: async (id: number) => {
       const res = await apiRequest("DELETE", `/api/business/sales/${id}`);
       if (!res.ok) {
@@ -375,32 +474,44 @@ export default function Sales() {
             <h1 className="text-2xl font-bold text-primary">Daily Sales</h1>
           </div>
 
-          <Dialog open={isOpen} onOpenChange={setIsOpen}>
-            <DialogTrigger asChild>
-              <Button>
-                <PlusCircle className="h-4 w-4 mr-2" />
-                Add Sales Record
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-lg">
-              <DialogHeader>
-                <DialogTitle>{selectedSales ? "Edit Sales Record" : "Add Sales Record"}</DialogTitle>
-                <DialogDescription>
-                  Record your daily sales with a breakdown of payment methods
-                </DialogDescription>
-              </DialogHeader>
-              <SalesForm
-                onSubmit={handleSubmit}
-                onCancel={() => {
-                  setIsOpen(false);
-                  setSelectedSales(null);
-                }}
-                defaultValues={selectedSales}
-              />
-            </DialogContent>
-          </Dialog>
+          <div className="flex gap-2">
+            <Dialog open={isOpen} onOpenChange={setIsOpen}>
+              <DialogTrigger asChild>
+                <Button>
+                  <PlusCircle className="h-4 w-4 mr-2" />
+                  Add Sales Record
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-lg">
+                <DialogHeader>
+                  <DialogTitle>{selectedSales ? "Edit Sales Record" : "Add Sales Record"}</DialogTitle>
+                  <DialogDescription>
+                    Record your daily sales with a breakdown of payment methods
+                  </DialogDescription>
+                </DialogHeader>
+                <SalesForm
+                  onSubmit={handleSubmit}
+                  onCancel={() => {
+                    setIsOpen(false);
+                    setSelectedSales(null);
+                  }}
+                  defaultValues={selectedSales}
+                />
+              </DialogContent>
+            </Dialog>
+
+            <Button variant="outline" onClick={() => setImportDialogOpen(true)}>
+              <Upload className="h-4 w-4 mr-2" />
+              Import CSV
+            </Button>
+          </div>
         </div>
       </header>
+
+      <ImportCSVDialog 
+        open={importDialogOpen} 
+        onOpenChange={setImportDialogOpen} 
+      />
 
       <main className="max-w-7xl mx-auto px-4 py-8">
         {isLoading ? (
@@ -420,7 +531,7 @@ export default function Sales() {
                 key={record.id}
                 sales={record}
                 onEdit={() => handleEdit(record)}
-                onDelete={(id) => deleteSalesMutation.mutate(id)}
+                onDelete={(id) => deleteMutation.mutate(id)}
               />
             ))}
           </div>
