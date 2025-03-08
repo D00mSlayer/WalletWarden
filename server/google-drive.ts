@@ -3,8 +3,8 @@ import { OAuth2Client } from 'google-auth-library';
 import { storage } from './storage';
 
 // Get the current Replit workspace URL
-const REPLIT_URL = process.env.REPL_SLUG && process.env.REPL_ID
-  ? `https://${process.env.REPL_SLUG}-${process.env.REPL_ID}.picard.replit.dev`
+const REPLIT_URL = process.env.REPL_SLUG
+  ? `https://workspace-${process.env.REPL_SLUG}.picard.replit.dev`
   : 'http://localhost:5000';
 
 console.log('[Google Drive] Using redirect URI:', `${REPLIT_URL}/api/google/callback`);
@@ -25,10 +25,13 @@ export async function getAuthUrl() {
 
   console.log('[Google Drive] Generating auth URL with scopes:', scopes);
 
-  return oauth2Client.generateAuthUrl({
+  const url = oauth2Client.generateAuthUrl({
     access_type: 'offline',
     scope: scopes
   });
+
+  console.log('[Google Drive] Generated auth URL:', url);
+  return url;
 }
 
 export async function handleCallback(code: string) {
