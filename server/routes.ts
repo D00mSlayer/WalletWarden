@@ -314,25 +314,57 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       for (const [index, row] of rows.entries()) {
         try {
-          // Parse date (supports both mm/dd/yyyy and mm-dd-yyyy formats)
+          // Validate row has all required columns
+          if (row.length < 8) {
+            throw new Error(`Missing columns. Expected 8 columns, got ${row.length}`);
+          }
+
+          if (!row[2] || !row[2].match(/^\d{1,2}[-/]\d{1,2}[-/]\d{4}$/)) {
+            throw new Error(`Invalid date format in column 3. Expected MM/DD/YYYY or MM-DD-YYYY, got: ${row[2]}`);
+          }
+
+          // Parse date
           const dateParts = row[2].split(/[-/]/);
-          const date = new Date(
-            parseInt(dateParts[2]), // year
-            parseInt(dateParts[0]) - 1, // month (0-based)
-            parseInt(dateParts[1]) // day
-          ).toISOString();
+          const month = parseInt(dateParts[0]) - 1;
+          const day = parseInt(dateParts[1]);
+          const year = parseInt(dateParts[2]);
+
+          if (month < 0 || month > 11) {
+            throw new Error(`Invalid month: ${month + 1}`);
+          }
+          if (day < 1 || day > 31) {
+            throw new Error(`Invalid day: ${day}`);
+          }
+
+          const date = new Date(year, month, day);
+          if (isNaN(date.getTime())) {
+            throw new Error(`Invalid date: ${row[2]}`);
+          }
+
+          console.log(`[API] Processing row ${index + 1}:`, {
+            category: row[0],
+            description: row[1],
+            date: date.toISOString(),
+            paidByMe: parseFloat(row[4]) || 0,
+            paidByBina: parseFloat(row[5]) || 0,
+            paidByBusiness: parseFloat(row[6]) || 0
+          });
 
           // Parse amounts
           const paidByMe = parseFloat(row[4]) || 0;
           const paidByBina = parseFloat(row[5]) || 0;
           const paidByBusiness = parseFloat(row[6]) || 0;
 
+          if (paidByMe + paidByBina + paidByBusiness === 0) {
+            throw new Error("No valid payment amounts found");
+          }
+
           // For each non-zero amount, create a separate expense entry
           if (paidByMe > 0) {
             const data = {
               category: row[0],
               description: row[1] || "",
-              date,
+              date: date.toISOString(),
               amount: paidByMe,
               isSharedExpense: false,
               paidBy: "Personal",
@@ -347,7 +379,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const data = {
               category: row[0],
               description: row[1] || "",
-              date,
+              date: date.toISOString(),
               amount: paidByBina,
               isSharedExpense: false,
               paidBy: "Other",
@@ -363,7 +395,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const data = {
               category: row[0],
               description: row[1] || "",
-              date,
+              date: date.toISOString(),
               amount: paidByBusiness,
               isSharedExpense: false,
               paidBy: "Business",
@@ -374,12 +406,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
             results.push(expense);
           }
         } catch (error) {
-          console.error(`[API] Error importing row ${index + 1}:`, error);
-          errors.push(`Row ${index + 1}: ${error.message}`);
+          console.error(`[API] Error importing row ${index + 1}:`, {
+            error: error.message,
+            rowData: row
+          });
+          errors.push({
+            row: index + 1,
+            data: row,
+            error: error.message
+          });
         }
       }
 
-      res.json({ success: true, imported: results.length, errors });
+      res.json({ 
+        success: true, 
+        imported: results.length, 
+        errors: errors.map(e => `Row ${e.row}: ${e.error} (Data: ${e.data.join(', ')})`)
+      });
     } catch (error) {
       console.error("[API] Error importing CSV:", error);
       res.status(500).json({ message: "Failed to import CSV data" });
@@ -464,31 +507,62 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       for (const [index, row] of rows.entries()) {
         try {
+          if (!row[0] || !row[0].match(/^\d{1,2}[-/]\d{1,2}[-/]\d{4}$/)) {
+            throw new Error(`Invalid date format in column 1. Expected MM/DD/YYYY or MM-DD-YYYY, got: ${row[0]}`);
+          }
+
           // Parse date (supports both mm/dd/yyyy and mm-dd-yyyy formats)
           const dateParts = row[0].split(/[-/]/);
-          const date = new Date(
-            parseInt(dateParts[2]), // year
-            parseInt(dateParts[0]) - 1, // month (0-based)
-            parseInt(dateParts[1]) // day
-          ).toISOString();
+          const month = parseInt(dateParts[0]) - 1;
+          const day = parseInt(dateParts[1]);
+          const year = parseInt(dateParts[2]);
+
+          if (month < 0 || month > 11) {
+            throw new Error(`Invalid month: ${month + 1}`);
+          }
+          if (day < 1 || day > 31) {
+            throw new Error(`Invalid day: ${day}`);
+          }
+
+          const date = new Date(year, month, day);
+          if (isNaN(date.getTime())) {
+            throw new Error(`Invalid date: ${row[0]}`);
+          }
 
           const data = {
-            date,
+            date: date.toISOString(),
             upiAmount: parseFloat(row[1]) || 0,
             cashAmount: parseFloat(row[2]) || 0,
             cardAmount: parseFloat(row[3]) || 0,
             notes: "",
           };
 
+          console.log(`[API] Processing row ${index + 1}:`, { 
+            originalDate: row[0],
+            parsedDate: date.toISOString(),
+            data 
+          });
+
           const sales = await storage.createDailySales(req.user.id, data);
           results.push(sales);
         } catch (error) {
-          console.error(`[API] Error importing row ${index + 1}:`, error);
-          errors.push(`Row ${index + 1}: ${error.message}`);
+          console.error(`[API] Error importing row ${index + 1}:`, {
+            error: error.message,
+            rowData: row
+          });
+          errors.push({
+            row: index + 1,
+            data: row,
+            error: error.message
+          });
         }
       }
 
-      res.json({ success: true, imported: results.length, errors });
+      res.json({ 
+        success: true, 
+        imported: results.length, 
+        errors: errors.map(e => `Row ${e.row}: ${e.error} (Data: ${e.data.join(', ')})`)
+      });
     } catch (error) {
       console.error("[API] Error importing CSV:", error);
       res.status(500).json({ message: "Failed to import CSV data" });

@@ -554,12 +554,14 @@ function ExpenseCard({ expense, onDelete }: { expense: Expense; onDelete: (id: n
 function ImportCSVDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
   const { toast } = useToast();
   const [isImporting, setIsImporting] = useState(false);
+  const [errors, setErrors] = useState<string[]>([]);
 
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
     setIsImporting(true);
+    setErrors([]);
     const reader = new FileReader();
 
     reader.onload = async (e) => {
@@ -582,6 +584,7 @@ function ImportCSVDialog({ open, onOpenChange }: { open: boolean; onOpenChange: 
         const result = await response.json();
 
         if (result.errors.length > 0) {
+          setErrors(result.errors);
           toast({
             title: "Import completed with errors",
             description: `Imported ${result.imported} records. ${result.errors.length} errors occurred.`,
@@ -592,10 +595,10 @@ function ImportCSVDialog({ open, onOpenChange }: { open: boolean; onOpenChange: 
             title: "Import successful",
             description: `Successfully imported ${result.imported} records.`,
           });
+          onOpenChange(false);
         }
 
         queryClient.invalidateQueries({ queryKey: ["/api/business/expenses"] });
-        onOpenChange(false);
       } catch (error) {
         toast({
           title: "Import failed",
@@ -636,6 +639,16 @@ function ImportCSVDialog({ open, onOpenChange }: { open: boolean; onOpenChange: 
             <div className="flex items-center justify-center">
               <Loader2 className="h-6 w-6 animate-spin" />
               <span className="ml-2">Importing...</span>
+            </div>
+          )}
+          {errors.length > 0 && (
+            <div className="mt-4 space-y-2">
+              <h4 className="font-medium text-destructive">Import Errors:</h4>
+              <div className="max-h-40 overflow-y-auto space-y-1">
+                {errors.map((error, index) => (
+                  <p key={index} className="text-sm text-destructive">{error}</p>
+                ))}
+              </div>
             </div>
           )}
         </div>
