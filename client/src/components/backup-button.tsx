@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { Cloud } from 'lucide-react';
 
-export function BackupButton() {
+export function BackupButton({ className }: { className?: string }) {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
@@ -13,7 +13,6 @@ export function BackupButton() {
       if (event.data === 'google-auth-success') {
         console.log('[Backup] Received auth success message from popup');
         try {
-          // Continue with backup process
           await performBackup();
         } catch (error) {
           console.error('[Backup] Error after auth:', error);
@@ -56,6 +55,7 @@ export function BackupButton() {
   const initiateBackup = async () => {
     try {
       setIsLoading(true);
+
       // First check if we need Google auth
       const authResponse = await fetch('/api/google/auth-url');
       if (!authResponse.ok) {
@@ -65,9 +65,15 @@ export function BackupButton() {
 
       // If we got a URL, we need to authenticate
       if (url) {
-        console.log('[Backup] Opening Google auth window with URL:', url);
+        console.log('[Backup] Opening Google auth window');
 
-        // Open Google auth in a popup
+        // For mobile devices, open in current window
+        if (/Android|webOS|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+          window.location.href = url;
+          return; // Don't set loading false as we're redirecting
+        }
+
+        // For desktop, open in popup
         const width = 600;
         const height = 600;
         const left = window.innerWidth / 2 - width / 2;
@@ -100,10 +106,11 @@ export function BackupButton() {
 
   return (
     <Button
-      variant="outline"
+      variant="ghost"
       size="sm"
       onClick={initiateBackup}
       disabled={isLoading}
+      className={className}
     >
       {isLoading ? (
         <>

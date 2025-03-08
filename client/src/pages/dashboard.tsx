@@ -2,11 +2,18 @@ import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/hooks/use-auth";
 import { Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-import { CreditCard, Wallet, Building2, FileText, CircleDollarSign, KeyRound, Store } from "lucide-react";
+import { CreditCard, Wallet, Building2, FileText, CircleDollarSign, KeyRound, Store, Settings2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { type CustomerCredit, type Loan } from "@shared/schema";
 import { BackupButton } from "@/components/backup-button";
 import { RestoreButton } from "@/components/restore-button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Button } from "@/components/ui/button";
 
 const tiles = [
   {
@@ -85,10 +92,22 @@ export default function Dashboard() {
         <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
           <h1 className="text-2xl font-bold text-primary">Financial Tracker</h1>
           <div className="flex items-center gap-4">
-            <div className="flex gap-2">
-              <BackupButton />
-              <RestoreButton />
-            </div>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm">
+                  <Settings2 className="h-4 w-4 mr-2" />
+                  Settings
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem className="p-0">
+                  <BackupButton className="w-full justify-start" />
+                </DropdownMenuItem>
+                <DropdownMenuItem className="p-0">
+                  <RestoreButton className="w-full justify-start" />
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
             <span className="text-sm text-gray-600">Welcome, {user?.username}</span>
             <button
               onClick={() => logoutMutation.mutate()}

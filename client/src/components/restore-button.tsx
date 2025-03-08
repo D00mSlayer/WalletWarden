@@ -14,7 +14,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 
-export function RestoreButton() {
+export function RestoreButton({ className }: { className?: string }) {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
@@ -31,6 +31,15 @@ export function RestoreButton() {
 
       // If we got a URL, we need to authenticate
       if (url) {
+        console.log('[Restore] Opening Google auth window');
+
+        // For mobile devices, open in current window
+        if (/Android|webOS|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+          window.location.href = url;
+          return; // Don't set loading false as we're redirecting
+        }
+
+        // For desktop, open in popup
         const width = 600;
         const height = 600;
         const left = window.innerWidth / 2 - width / 2;
@@ -91,9 +100,10 @@ export function RestoreButton() {
     <AlertDialog>
       <AlertDialogTrigger asChild>
         <Button
-          variant="outline"
+          variant="ghost"
           size="sm"
           disabled={isLoading}
+          className={className}
         >
           {isLoading ? (
             <>
