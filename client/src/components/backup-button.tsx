@@ -19,6 +19,8 @@ export function BackupButton() {
 
       // If we got a URL, we need to authenticate
       if (url) {
+        console.log('[Backup] Opening Google auth window with URL:', url);
+
         // Open Google auth in a popup
         const width = 600;
         const height = 600;
@@ -37,8 +39,10 @@ export function BackupButton() {
 
         // Wait for the auth window to close
         await new Promise<void>((resolve, reject) => {
+          console.log('[Backup] Waiting for auth window to close');
           const checkClosed = setInterval(() => {
             if (authWindow.closed) {
+              console.log('[Backup] Auth window closed');
               clearInterval(checkClosed);
               resolve();
             }
@@ -52,6 +56,7 @@ export function BackupButton() {
         });
       }
 
+      console.log('[Backup] Initiating backup to Google Drive');
       // Try to backup
       const backupResponse = await fetch('/api/backup', {
         method: 'POST',
@@ -64,12 +69,14 @@ export function BackupButton() {
       }
 
       const file = await backupResponse.json();
+      console.log('[Backup] Backup successful:', file);
+
       toast({
         title: "Backup successful",
         description: `Your data has been backed up to Google Drive: ${file.name}`,
       });
     } catch (error) {
-      console.error('Backup error:', error);
+      console.error('[Backup] Error:', error);
       toast({
         title: "Backup failed",
         description: error instanceof Error ? error.message : "An error occurred during backup",
