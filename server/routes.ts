@@ -430,9 +430,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      res.json({ 
-        success: true, 
-        imported: results.length, 
+      res.json({
+        success: true,
+        imported: results.length,
         errors: errors.map(e => `Row ${e.row}: ${e.error} (Data: ${e.data.join(', ')})`)
       });
     } catch (error) {
@@ -551,10 +551,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
             notes: "",
           };
 
-          console.log(`[API] Processing row ${index + 1}:`, { 
+          console.log(`[API] Processing row ${index + 1}:`, {
             originalDate: row[0],
             parsedDate: date.toISOString(),
-            data 
+            data
           });
 
           const sales = await storage.createDailySales(req.user.id, data);
@@ -572,9 +572,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      res.json({ 
-        success: true, 
-        imported: results.length, 
+      res.json({
+        success: true,
+        imported: results.length,
         errors: errors.map(e => `Row ${e.row}: ${e.error} (Data: ${e.data.join(', ')})`)
       });
     } catch (error) {
@@ -641,7 +641,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const baseUrl = `${req.protocol}://${req.get('host')}`;
       const tokens = await handleCallback(code, baseUrl);
       req.session.googleTokens = tokens;
-      res.redirect('/dashboard');
+
+      // Return HTML that closes the popup and signals success
+      res.send(`
+        <html>
+          <body>
+            <script>
+              window.opener.postMessage('google-auth-success', '*');
+              window.close();
+            </script>
+          </body>
+        </html>
+      `);
     } catch (error) {
       console.error('Failed to handle callback:', error);
       res.status(500).json({ message: "Failed to authenticate with Google" });
@@ -667,7 +678,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     if (!req.isAuthenticated()) return res.sendStatus(401);
     const baseUrl = `${req.protocol}://${req.get('host')}`;
     const redirectUri = `${baseUrl}/api/google/callback`;
-    res.json({ 
+    res.json({
       redirectUri,
       replit: {
         slug: process.env.REPL_SLUG,

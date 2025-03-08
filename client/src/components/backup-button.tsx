@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { Cloud } from 'lucide-react';
@@ -6,6 +6,52 @@ import { Cloud } from 'lucide-react';
 export function BackupButton() {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+
+  // Setup message listener for Google auth popup
+  useEffect(() => {
+    const handleMessage = async (event: MessageEvent) => {
+      if (event.data === 'google-auth-success') {
+        console.log('[Backup] Received auth success message from popup');
+        try {
+          // Continue with backup process
+          await performBackup();
+        } catch (error) {
+          console.error('[Backup] Error after auth:', error);
+          toast({
+            title: "Backup failed",
+            description: error instanceof Error ? error.message : "An error occurred during backup",
+            variant: "destructive",
+          });
+        } finally {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, [toast]);
+
+  const performBackup = async () => {
+    console.log('[Backup] Initiating backup to Google Drive');
+    const backupResponse = await fetch('/api/backup', {
+      method: 'POST',
+      credentials: 'include',
+    });
+
+    if (!backupResponse.ok) {
+      const errorText = await backupResponse.text();
+      throw new Error(`Backup failed: ${errorText}`);
+    }
+
+    const file = await backupResponse.json();
+    console.log('[Backup] Backup successful:', file);
+
+    toast({
+      title: "Backup successful",
+      description: `Your data has been backed up to Google Drive: ${file.name}`,
+    });
+  };
 
   const initiateBackup = async () => {
     try {
@@ -36,45 +82,11 @@ export function BackupButton() {
         if (!authWindow) {
           throw new Error('Popup blocked. Please allow popups and try again.');
         }
-
-        // Wait for the auth window to close
-        await new Promise<void>((resolve, reject) => {
-          console.log('[Backup] Waiting for auth window to close');
-          const checkClosed = setInterval(() => {
-            if (authWindow.closed) {
-              console.log('[Backup] Auth window closed');
-              clearInterval(checkClosed);
-              resolve();
-            }
-          }, 500);
-
-          // Timeout after 2 minutes
-          setTimeout(() => {
-            clearInterval(checkClosed);
-            reject(new Error('Authentication timed out. Please try again.'));
-          }, 120000);
-        });
+      } else {
+        // No auth needed, proceed with backup
+        await performBackup();
+        setIsLoading(false);
       }
-
-      console.log('[Backup] Initiating backup to Google Drive');
-      // Try to backup
-      const backupResponse = await fetch('/api/backup', {
-        method: 'POST',
-        credentials: 'include',
-      });
-
-      if (!backupResponse.ok) {
-        const errorText = await backupResponse.text();
-        throw new Error(`Backup failed: ${errorText}`);
-      }
-
-      const file = await backupResponse.json();
-      console.log('[Backup] Backup successful:', file);
-
-      toast({
-        title: "Backup successful",
-        description: `Your data has been backed up to Google Drive: ${file.name}`,
-      });
     } catch (error) {
       console.error('[Backup] Error:', error);
       toast({
@@ -82,7 +94,6 @@ export function BackupButton() {
         description: error instanceof Error ? error.message : "An error occurred during backup",
         variant: "destructive",
       });
-    } finally {
       setIsLoading(false);
     }
   };
