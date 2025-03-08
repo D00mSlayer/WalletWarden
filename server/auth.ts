@@ -1,3 +1,15 @@
+declare module 'express-session' {
+  interface SessionData {
+    googleTokens?: {
+      access_token?: string;
+      refresh_token?: string;
+      scope?: string;
+      token_type?: string;
+      expiry_date?: number;
+    };
+  }
+}
+
 import passport from "passport";
 import { Strategy as LocalStrategy } from "passport-local";
 import { Express } from "express";

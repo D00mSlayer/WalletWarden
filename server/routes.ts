@@ -666,7 +666,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
     try {
       const baseUrl = `${req.protocol}://${req.get('host')}`;
-      const file = await backupToGoogleDrive(req.user.id, baseUrl);
+      const file = await backupToGoogleDrive(req.user.id, baseUrl, req.session.googleTokens);
       res.json(file);
     } catch (error) {
       console.error('Failed to backup:', error);

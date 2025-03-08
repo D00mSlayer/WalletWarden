@@ -53,12 +53,13 @@ export async function handleCallback(code: string, baseUrl: string) {
   }
 }
 
-export async function backupToGoogleDrive(userId: number, baseUrl: string) {
+export async function backupToGoogleDrive(userId: number, baseUrl: string, tokens: any) {
   try {
     console.log('[Google Drive] Starting backup for user:', userId);
 
     // Ensure OAuth client is configured with current URL
     const client = configureOAuth2Client(baseUrl);
+    client.setCredentials(tokens);
     const drive = google.drive({ version: 'v3', auth: client });
 
     // Fetch all data for the user
