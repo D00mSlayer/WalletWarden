@@ -16,6 +16,7 @@ import {
 
 export function RestoreButton({ className }: { className?: string }) {
   const [isLoading, setIsLoading] = useState(false);
+  const [dialogOpen, setDialogOpen] = useState(false);
   const { toast } = useToast();
 
   const handleRestore = async () => {
@@ -93,11 +94,12 @@ export function RestoreButton({ className }: { className?: string }) {
       });
     } finally {
       setIsLoading(false);
+      setDialogOpen(false);
     }
   };
 
   return (
-    <AlertDialog>
+    <AlertDialog open={dialogOpen} onOpenChange={setDialogOpen}>
       <AlertDialogTrigger asChild>
         <Button
           variant="ghost"
@@ -130,7 +132,7 @@ export function RestoreButton({ className }: { className?: string }) {
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogCancel onClick={() => setDialogOpen(false)}>Cancel</AlertDialogCancel>
           <AlertDialogAction onClick={handleRestore}>
             Continue
           </AlertDialogAction>

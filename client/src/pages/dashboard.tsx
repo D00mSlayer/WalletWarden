@@ -106,15 +106,15 @@ export default function Dashboard() {
                 <DropdownMenuItem className="p-0">
                   <RestoreButton className="w-full justify-start" />
                 </DropdownMenuItem>
+                <DropdownMenuItem
+                  className="text-red-600 hover:text-red-700 cursor-pointer"
+                  onClick={() => logoutMutation.mutate()}
+                >
+                  Logout
+                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
             <span className="text-sm text-gray-600">Welcome, {user?.username}</span>
-            <button
-              onClick={() => logoutMutation.mutate()}
-              className="text-sm text-red-600 hover:text-red-700"
-            >
-              Logout
-            </button>
           </div>
         </div>
       </header>
