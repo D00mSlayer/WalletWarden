@@ -5,16 +5,21 @@ import { storage } from './storage';
 const oauth2Client = new OAuth2Client(
   process.env.GOOGLE_CLIENT_ID,
   process.env.GOOGLE_CLIENT_SECRET,
-  'http://localhost:5000/api/google/callback'
+  // Use the current domain for the redirect URI
+  `${process.env.REPL_SLUG ? `https://${process.env.REPL_SLUG}.replit.dev` : 'http://localhost:5000'}/api/google/callback`
 );
 
 const drive = google.drive({ version: 'v3', auth: oauth2Client });
 
 export async function getAuthUrl() {
-  const scopes = ['https://www.googleapis.com/auth/drive.file'];
+  const scopes = [
+    'https://www.googleapis.com/auth/drive.file',
+    'https://www.googleapis.com/auth/drive.appdata'
+  ];
   return oauth2Client.generateAuthUrl({
     access_type: 'offline',
     scope: scopes,
+    prompt: 'consent' // Always show the consent screen to ensure we get a refresh token
   });
 }
 

@@ -12,34 +12,67 @@ export function BackupButton() {
       setIsLoading(true);
       // First check if we need Google auth
       const authResponse = await fetch('/api/google/auth-url');
-      if (!authResponse.ok) throw new Error('Failed to get auth URL');
+      if (!authResponse.ok) {
+        throw new Error(`Failed to get auth URL: ${await authResponse.text()}`);
+      }
       const { url } = await authResponse.json();
 
       // If we got a URL, we need to authenticate
       if (url) {
-        // Open Google auth in a new window
-        const authWindow = window.open(url, 'google-auth', 'width=500,height=600');
+        // Open Google auth in a popup
+        const width = 600;
+        const height = 600;
+        const left = window.innerWidth / 2 - width / 2;
+        const top = window.innerHeight / 2 - height / 2;
+
+        const authWindow = window.open(
+          url,
+          'google-auth',
+          `width=${width},height=${height},left=${left},top=${top}`
+        );
+
         if (!authWindow) {
           throw new Error('Popup blocked. Please allow popups and try again.');
         }
+
+        // Wait for the auth window to close
+        await new Promise<void>((resolve, reject) => {
+          const checkClosed = setInterval(() => {
+            if (authWindow.closed) {
+              clearInterval(checkClosed);
+              resolve();
+            }
+          }, 500);
+
+          // Timeout after 2 minutes
+          setTimeout(() => {
+            clearInterval(checkClosed);
+            reject(new Error('Authentication timed out. Please try again.'));
+          }, 120000);
+        });
       }
 
       // Try to backup
       const backupResponse = await fetch('/api/backup', {
         method: 'POST',
+        credentials: 'include',
       });
 
-      if (!backupResponse.ok) throw new Error('Backup failed');
-      
+      if (!backupResponse.ok) {
+        const errorText = await backupResponse.text();
+        throw new Error(`Backup failed: ${errorText}`);
+      }
+
       const file = await backupResponse.json();
       toast({
         title: "Backup successful",
         description: `Your data has been backed up to Google Drive: ${file.name}`,
       });
     } catch (error) {
+      console.error('Backup error:', error);
       toast({
         title: "Backup failed",
-        description: error instanceof Error ? error.message : "An error occurred",
+        description: error instanceof Error ? error.message : "An error occurred during backup",
         variant: "destructive",
       });
     } finally {
