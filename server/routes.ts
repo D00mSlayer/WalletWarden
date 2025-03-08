@@ -441,6 +441,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+
   // Daily Sales Routes
   app.get("/api/business/sales", async (req, res) => {
     if (!req.isAuthenticated()) return res.sendStatus(401);
@@ -580,6 +581,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Failed to import CSV data" });
     }
   });
+
 
 
   // Document Routes
