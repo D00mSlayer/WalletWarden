@@ -569,7 +569,7 @@ function ImportCSVDialog({ open, onOpenChange }: { open: boolean; onOpenChange: 
         const text = e.target?.result as string;
         const rows = text.split('\n')
           .map(row => row.split(',').map(cell => cell.trim()))
-          .filter(row => row.length >= 8); // Ensure we have all required columns
+          .filter(row => row.length >= 7); // Ensure we have all required columns
 
         const response = await apiRequest(
           "POST",
@@ -621,7 +621,10 @@ function ImportCSVDialog({ open, onOpenChange }: { open: boolean; onOpenChange: 
           <DialogDescription>
             Upload a CSV file with the following columns:
             <br />
-            Category, Description, Date (MM/DD/YYYY), Total Cost, Paid by Me, Paid by Bina, Paid by Business, Notes
+            Category, Description, Total Cost (ignored), Paid by Me, Paid by Bina, Paid by Business, Notes
+            <br />
+            <br />
+            Note: All expenses will be dated October 15, 2024 by default, unless a date is found in the Notes column (e.g. "Paid Jan 25 2025").
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4">

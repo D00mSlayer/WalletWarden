@@ -319,26 +319,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
             throw new Error(`Missing columns. Expected 8 columns, got ${row.length}`);
           }
 
-          if (!row[2] || !row[2].match(/^\d{1,2}[-/]\d{1,2}[-/]\d{4}$/)) {
-            throw new Error(`Invalid date format in column 3. Expected MM/DD/YYYY or MM-DD-YYYY, got: ${row[2]}`);
-          }
+          // Set default date as October 15, 2024
+          let date = new Date(2024, 9, 15); // Month is 0-based, so 9 is October
 
-          // Parse date
-          const dateParts = row[2].split(/[-/]/);
-          const month = parseInt(dateParts[0]) - 1;
-          const day = parseInt(dateParts[1]);
-          const year = parseInt(dateParts[2]);
+          // Try to parse date from notes if available
+          const notes = row[7] || "";
+          const dateMatch = notes.match(/(\w+)\s+(\d+)\s+(\d{4})/);
+          if (dateMatch) {
+            const months = {
+              'january': 0, 'jan': 0,
+              'february': 1, 'feb': 1,
+              'march': 2, 'mar': 2,
+              'april': 3, 'apr': 3,
+              'may': 4,
+              'june': 5, 'jun': 5,
+              'july': 6, 'jul': 6,
+              'august': 7, 'aug': 7,
+              'september': 8, 'sep': 8,
+              'october': 9, 'oct': 9,
+              'november': 10, 'nov': 10,
+              'december': 11, 'dec': 11
+            };
 
-          if (month < 0 || month > 11) {
-            throw new Error(`Invalid month: ${month + 1}`);
-          }
-          if (day < 1 || day > 31) {
-            throw new Error(`Invalid day: ${day}`);
-          }
+            const monthStr = dateMatch[1].toLowerCase();
+            const day = parseInt(dateMatch[2]);
+            const year = parseInt(dateMatch[3]);
 
-          const date = new Date(year, month, day);
-          if (isNaN(date.getTime())) {
-            throw new Error(`Invalid date: ${row[2]}`);
+            if (months.hasOwnProperty(monthStr) && day >= 1 && day <= 31) {
+              const parsedDate = new Date(year, months[monthStr], day);
+              if (!isNaN(parsedDate.getTime())) {
+                date = parsedDate;
+              }
+            }
           }
 
           console.log(`[API] Processing row ${index + 1}:`, {
@@ -607,7 +619,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     await storage.deleteDocument(document.id);
     res.sendStatus(204);
   });
-
 
   app.get("/api/google/auth-url", async (req, res) => {
     if (!req.isAuthenticated()) return res.sendStatus(401);
