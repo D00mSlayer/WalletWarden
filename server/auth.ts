@@ -7,6 +7,7 @@ declare module 'express-session' {
       token_type?: string;
       expiry_date?: number;
     };
+    backupFolderId?: string;
   }
 }
 

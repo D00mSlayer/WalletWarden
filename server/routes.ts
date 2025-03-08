@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { setupAuth } from "./auth";
 import { storage } from "./storage";
 import { insertCreditCardSchema, insertDebitCardSchema, insertBankAccountSchema, insertLoanSchema, insertRepaymentSchema, insertPasswordSchema, insertCustomerCreditSchema, insertExpenseSchema, insertDailySalesSchema, insertDocumentSchema } from "@shared/schema";
-import { getAuthUrl, handleCallback, backupToGoogleDrive } from './google-drive';
+import { getAuthUrl, handleCallback, backupToGoogleDrive, getLatestBackup } from './google-drive';
 
 export async function registerRoutes(app: Express): Promise<Server> {
   setupAuth(app);
@@ -686,6 +686,77 @@ export async function registerRoutes(app: Express): Promise<Server> {
         id: process.env.REPL_ID
       }
     });
+  });
+
+  // Add this near your other Google Drive routes:
+  app.post("/api/restore", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    if (!req.session.googleTokens) {
+      return res.status(401).json({ message: "Google authentication required" });
+    }
+
+    try {
+      const baseUrl = `${req.protocol}://${req.get('host')}`;
+      const backupData = await getLatestBackup(baseUrl, req.session.googleTokens);
+
+      // Restore all data
+      if (backupData.creditCards) {
+        for (const card of backupData.creditCards) {
+          await storage.createCreditCard(req.user.id, card);
+        }
+      }
+      if (backupData.debitCards) {
+        for (const card of backupData.debitCards) {
+          await storage.createDebitCard(req.user.id, card);
+        }
+      }
+      if (backupData.bankAccounts) {
+        for (const account of backupData.bankAccounts) {
+          await storage.createBankAccount(req.user.id, account);
+        }
+      }
+      if (backupData.loans) {
+        for (const loan of backupData.loans) {
+          const newLoan = await storage.createLoan(req.user.id, loan);
+          // Restore repayments for this loan
+          if (backupData.loanRepayments && backupData.loanRepayments[loan.id]) {
+            for (const repayment of backupData.loanRepayments[loan.id]) {
+              await storage.createRepayment(newLoan.id, repayment);
+            }
+          }
+        }
+      }
+      if (backupData.passwords) {
+        for (const password of backupData.passwords) {
+          await storage.createPassword(req.user.id, password);
+        }
+      }
+      if (backupData.documents) {
+        for (const document of backupData.documents) {
+          await storage.createDocument(req.user.id, document);
+        }
+      }
+      if (backupData.customerCredits) {
+        for (const credit of backupData.customerCredits) {
+          await storage.createCustomerCredit(req.user.id, credit);
+        }
+      }
+      if (backupData.expenses) {
+        for (const expense of backupData.expenses) {
+          await storage.createExpense(req.user.id, expense);
+        }
+      }
+      if (backupData.dailySales) {
+        for (const sale of backupData.dailySales) {
+          await storage.createDailySales(req.user.id, sale);
+        }
+      }
+
+      res.json({ message: "Restore completed successfully" });
+    } catch (error) {
+      console.error('Failed to restore:', error);
+      res.status(500).json({ message: "Failed to restore data" });
+    }
   });
 
   const httpServer = createServer(app);

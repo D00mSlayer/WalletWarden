@@ -53,6 +53,36 @@ export async function handleCallback(code: string, baseUrl: string) {
   }
 }
 
+async function findOrCreateBackupFolder(drive: any) {
+  const folderName = 'Financial App Backups';
+
+  // Check if folder already exists
+  const response = await drive.files.list({
+    q: `name='${folderName}' and mimeType='application/vnd.google-apps.folder' and trashed=false`,
+    fields: 'files(id, name)',
+    spaces: 'drive'
+  });
+
+  if (response.data.files.length > 0) {
+    console.log('[Google Drive] Found existing backup folder:', response.data.files[0].id);
+    return response.data.files[0].id;
+  }
+
+  // Create new folder
+  const fileMetadata = {
+    name: folderName,
+    mimeType: 'application/vnd.google-apps.folder'
+  };
+
+  const folder = await drive.files.create({
+    requestBody: fileMetadata,
+    fields: 'id'
+  });
+
+  console.log('[Google Drive] Created new backup folder:', folder.data.id);
+  return folder.data.id;
+}
+
 export async function backupToGoogleDrive(userId: number, baseUrl: string, tokens: any) {
   try {
     console.log('[Google Drive] Starting backup for user:', userId);
@@ -61,6 +91,9 @@ export async function backupToGoogleDrive(userId: number, baseUrl: string, token
     const client = configureOAuth2Client(baseUrl);
     client.setCredentials(tokens);
     const drive = google.drive({ version: 'v3', auth: client });
+
+    // Get or create backup folder
+    const folderId = await findOrCreateBackupFolder(drive);
 
     // Fetch all data for the user
     const data = {
@@ -75,11 +108,19 @@ export async function backupToGoogleDrive(userId: number, baseUrl: string, token
       dailySales: await storage.getDailySales(userId),
     };
 
-    // Create backup file
+    // Add loan repayments
+    const loans = await storage.getLoans(userId);
+    data.loanRepayments = {};
+    for (const loan of loans) {
+      data.loanRepayments[loan.id] = await storage.getRepayments(loan.id);
+    }
+
+    // Create backup file with timestamp
+    const timestamp = new Date().toISOString();
     const fileMetadata = {
-      name: `financial-app-backup-${new Date().toISOString()}.json`,
+      name: `backup-${timestamp}.json`,
       mimeType: 'application/json',
-      parents: ['root'] // Save in root folder
+      parents: [folderId]
     };
 
     const media = {
@@ -100,6 +141,47 @@ export async function backupToGoogleDrive(userId: number, baseUrl: string, token
     return response.data;
   } catch (error) {
     console.error('[Google Drive] Failed to backup to Google Drive:', error);
+    throw error;
+  }
+}
+
+export async function getLatestBackup(baseUrl: string, tokens: any) {
+  try {
+    console.log('[Google Drive] Fetching latest backup');
+
+    // Configure client
+    const client = configureOAuth2Client(baseUrl);
+    client.setCredentials(tokens);
+    const drive = google.drive({ version: 'v3', auth: client });
+
+    // Find backup folder
+    const folderId = await findOrCreateBackupFolder(drive);
+
+    // Get latest backup file
+    const response = await drive.files.list({
+      q: `'${folderId}' in parents and mimeType='application/json' and trashed=false`,
+      orderBy: 'createdTime desc',
+      pageSize: 1,
+      fields: 'files(id, name, createdTime)',
+      spaces: 'drive'
+    });
+
+    if (response.data.files.length === 0) {
+      throw new Error('No backup files found');
+    }
+
+    const file = response.data.files[0];
+    console.log('[Google Drive] Found latest backup:', file);
+
+    // Download file content
+    const fileResponse = await drive.files.get({
+      fileId: file.id,
+      alt: 'media'
+    });
+
+    return fileResponse.data;
+  } catch (error) {
+    console.error('[Google Drive] Failed to fetch latest backup:', error);
     throw error;
   }
 }
