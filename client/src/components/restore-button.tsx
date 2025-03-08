@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { Download } from 'lucide-react';
@@ -36,6 +36,7 @@ export function RestoreButton({ className }: { className?: string }) {
 
         // For mobile devices, open in current window
         if (/Android|webOS|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+          sessionStorage.setItem('pendingRestore', 'true');
           window.location.href = url;
           return; // Don't set loading false as we're redirecting
         }
@@ -102,6 +103,31 @@ export function RestoreButton({ className }: { className?: string }) {
     e.stopPropagation(); // Prevent dropdown from closing
     setDialogOpen(true);
   };
+
+  // Setup mobile auth return handler
+  useEffect(() => {
+    const checkMobileAuth = async () => {
+      const pendingRestore = sessionStorage.getItem('pendingRestore');
+      if (pendingRestore) {
+        sessionStorage.removeItem('pendingRestore');
+        console.log('[Restore] Detected return from mobile auth');
+        try {
+          setDialogOpen(true);
+          await handleRestore();
+        } catch (error) {
+          console.error('[Restore] Error after mobile auth:', error);
+          toast({
+            title: "Restore failed",
+            description: error instanceof Error ? error.message : "An error occurred during restore",
+            variant: "destructive",
+          });
+          setDialogOpen(false);
+        }
+      }
+    };
+
+    checkMobileAuth();
+  }, []);
 
   return (
     <AlertDialog open={dialogOpen} onOpenChange={setDialogOpen}>

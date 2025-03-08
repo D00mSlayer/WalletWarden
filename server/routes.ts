@@ -647,8 +647,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         <html>
           <body>
             <script>
-              window.opener.postMessage('google-auth-success', '*');
-              window.close();
+              if (window.opener) {
+                // Desktop flow - send message to opener and close window
+                window.opener.postMessage('google-auth-success', '*');
+                window.close();
+              } else {
+                // Mobile flow - redirect back to app
+                window.location.href = '/';
+              }
             </script>
           </body>
         </html>
@@ -747,8 +753,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       if (backupData.dailySales) {
-        for (const sale of backupData.dailySales) {
-          await storage.createDailySales(req.user.id, sale);
+        for (const sale of backupData.dailySales) {          await storage.createDailySales(req.user.id, sale);
         }
       }
 

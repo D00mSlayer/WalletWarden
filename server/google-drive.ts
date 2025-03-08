@@ -18,26 +18,41 @@ export function configureOAuth2Client(baseUrl: string) {
 }
 
 export async function getAuthUrl(baseUrl: string) {
-  // Ensure OAuth client is configured with current URL
-  const client = configureOAuth2Client(baseUrl);
+  try {
+    // Ensure OAuth client is configured with current URL
+    const client = configureOAuth2Client(baseUrl);
 
-  const scopes = [
-    'https://www.googleapis.com/auth/drive.file' // Only request drive.file scope
-  ];
+    const scopes = [
+      'https://www.googleapis.com/auth/drive.file' // Only request drive.file scope
+    ];
 
-  console.log('[Google Drive] Generating auth URL with scopes:', scopes);
+    console.log('[Google Drive] Generating auth URL with scopes:', scopes);
 
-  const url = client.generateAuthUrl({
-    access_type: 'offline',
-    scope: scopes
-  });
+    // Generate a state parameter to prevent CSRF
+    const state = Math.random().toString(36).substring(7);
 
-  console.log('[Google Drive] Generated auth URL:', url);
-  return url;
+    const url = client.generateAuthUrl({
+      access_type: 'offline',
+      scope: scopes,
+      state: state,
+      prompt: 'consent' // Always show consent screen to get refresh token
+    });
+
+    console.log('[Google Drive] Generated auth URL:', url);
+    return { url, state };
+  } catch (error) {
+    console.error('[Google Drive] Error generating auth URL:', error);
+    throw error;
+  }
 }
 
-export async function handleCallback(code: string, baseUrl: string) {
+export async function handleCallback(code: string, baseUrl: string, expectedState?: string, providedState?: string) {
   console.log('[Google Drive] Handling OAuth callback');
+
+  // Verify state parameter if provided
+  if (expectedState && providedState && expectedState !== providedState) {
+    throw new Error('Invalid state parameter');
+  }
 
   // Ensure OAuth client is configured with current URL
   const client = configureOAuth2Client(baseUrl);
@@ -63,7 +78,7 @@ async function findOrCreateBackupFolder(drive: any) {
     spaces: 'drive'
   });
 
-  if (response.data.files.length > 0) {
+  if (response.data.files && response.data.files.length > 0) {
     console.log('[Google Drive] Found existing backup folder:', response.data.files[0].id);
     return response.data.files[0].id;
   }
@@ -106,11 +121,11 @@ export async function backupToGoogleDrive(userId: number, baseUrl: string, token
       customerCredits: await storage.getCustomerCredits(userId),
       expenses: await storage.getExpenses(userId),
       dailySales: await storage.getDailySales(userId),
+      loanRepayments: {} as { [key: number]: any[] }
     };
 
     // Add loan repayments
     const loans = await storage.getLoans(userId);
-    data.loanRepayments = {};
     for (const loan of loans) {
       data.loanRepayments[loan.id] = await storage.getRepayments(loan.id);
     }
@@ -125,7 +140,7 @@ export async function backupToGoogleDrive(userId: number, baseUrl: string, token
 
     const media = {
       mimeType: 'application/json',
-      body: JSON.stringify(data, null, 2),
+      body: JSON.stringify(data, null, 2)
     };
 
     console.log('[Google Drive] Uploading backup file:', fileMetadata.name);
@@ -134,7 +149,7 @@ export async function backupToGoogleDrive(userId: number, baseUrl: string, token
     const response = await drive.files.create({
       requestBody: fileMetadata,
       media: media,
-      fields: 'id,name,webViewLink',
+      fields: 'id,name,webViewLink'
     });
 
     console.log('[Google Drive] Backup successful:', response.data);
@@ -166,7 +181,7 @@ export async function getLatestBackup(baseUrl: string, tokens: any) {
       spaces: 'drive'
     });
 
-    if (response.data.files.length === 0) {
+    if (!response.data.files || response.data.files.length === 0) {
       throw new Error('No backup files found');
     }
 
@@ -175,7 +190,7 @@ export async function getLatestBackup(baseUrl: string, tokens: any) {
 
     // Download file content
     const fileResponse = await drive.files.get({
-      fileId: file.id,
+      fileId: file.id!,
       alt: 'media'
     });
 

@@ -7,7 +7,7 @@ export function BackupButton({ className }: { className?: string }) {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
-  // Setup message listener for Google auth popup
+  // Setup message listener for Google auth popup and mobile auth check
   useEffect(() => {
     const handleMessage = async (event: MessageEvent) => {
       if (event.data === 'google-auth-success') {
@@ -27,7 +27,30 @@ export function BackupButton({ className }: { className?: string }) {
       }
     };
 
+    // Check if we're returning from a mobile auth flow
+    const checkMobileAuth = async () => {
+      const pendingBackup = sessionStorage.getItem('pendingBackup');
+      if (pendingBackup) {
+        sessionStorage.removeItem('pendingBackup');
+        console.log('[Backup] Detected return from mobile auth');
+        try {
+          await performBackup();
+        } catch (error) {
+          console.error('[Backup] Error after mobile auth:', error);
+          toast({
+            title: "Backup failed",
+            description: error instanceof Error ? error.message : "An error occurred during backup",
+            variant: "destructive",
+          });
+        } finally {
+          setIsLoading(false);
+        }
+      }
+    };
+
     window.addEventListener('message', handleMessage);
+    checkMobileAuth();
+
     return () => window.removeEventListener('message', handleMessage);
   }, [toast]);
 
