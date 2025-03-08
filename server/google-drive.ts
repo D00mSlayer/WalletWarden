@@ -2,30 +2,32 @@ import { google } from 'googleapis';
 import { OAuth2Client } from 'google-auth-library';
 import { storage } from './storage';
 
-// Get the current Replit workspace URL
-const REPLIT_URL = process.env.REPL_SLUG
-  ? `https://workspace-${process.env.REPL_SLUG}.picard.replit.dev`
-  : 'http://localhost:5000';
+let oauth2Client: OAuth2Client;
 
-console.log('[Google Drive] Using redirect URI:', `${REPLIT_URL}/api/google/callback`);
+export function configureOAuth2Client(baseUrl: string) {
+  const redirectUri = `${baseUrl}/api/google/callback`;
+  console.log('[Google Drive] Configuring OAuth client with redirect URI:', redirectUri);
 
-const oauth2Client = new OAuth2Client(
-  process.env.GOOGLE_CLIENT_ID,
-  process.env.GOOGLE_CLIENT_SECRET,
-  // Use the actual workspace URL for the redirect URI
-  `${REPLIT_URL}/api/google/callback`
-);
+  oauth2Client = new OAuth2Client(
+    process.env.GOOGLE_CLIENT_ID,
+    process.env.GOOGLE_CLIENT_SECRET,
+    redirectUri
+  );
 
-const drive = google.drive({ version: 'v3', auth: oauth2Client });
+  return oauth2Client;
+}
 
-export async function getAuthUrl() {
+export async function getAuthUrl(baseUrl: string) {
+  // Ensure OAuth client is configured with current URL
+  const client = configureOAuth2Client(baseUrl);
+
   const scopes = [
     'https://www.googleapis.com/auth/drive.file' // Only request drive.file scope
   ];
 
   console.log('[Google Drive] Generating auth URL with scopes:', scopes);
 
-  const url = oauth2Client.generateAuthUrl({
+  const url = client.generateAuthUrl({
     access_type: 'offline',
     scope: scopes
   });
@@ -34,12 +36,16 @@ export async function getAuthUrl() {
   return url;
 }
 
-export async function handleCallback(code: string) {
+export async function handleCallback(code: string, baseUrl: string) {
   console.log('[Google Drive] Handling OAuth callback');
+
+  // Ensure OAuth client is configured with current URL
+  const client = configureOAuth2Client(baseUrl);
+
   try {
-    const { tokens } = await oauth2Client.getToken(code);
+    const { tokens } = await client.getToken(code);
     console.log('[Google Drive] Successfully obtained tokens');
-    oauth2Client.setCredentials(tokens);
+    client.setCredentials(tokens);
     return tokens;
   } catch (error) {
     console.error('[Google Drive] Error getting tokens:', error);
@@ -47,9 +53,13 @@ export async function handleCallback(code: string) {
   }
 }
 
-export async function backupToGoogleDrive(userId: number) {
+export async function backupToGoogleDrive(userId: number, baseUrl: string) {
   try {
     console.log('[Google Drive] Starting backup for user:', userId);
+
+    // Ensure OAuth client is configured with current URL
+    const client = configureOAuth2Client(baseUrl);
+    const drive = google.drive({ version: 'v3', auth: client });
 
     // Fetch all data for the user
     const data = {

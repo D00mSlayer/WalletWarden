@@ -442,6 +442,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
 
+
   // Daily Sales Routes
   app.get("/api/business/sales", async (req, res) => {
     if (!req.isAuthenticated()) return res.sendStatus(401);
@@ -583,7 +584,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
 
-
   // Document Routes
   app.get("/api/documents", async (req, res) => {
     if (!req.isAuthenticated()) return res.sendStatus(401);
@@ -625,7 +625,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/google/auth-url", async (req, res) => {
     if (!req.isAuthenticated()) return res.sendStatus(401);
     try {
-      const url = await getAuthUrl();
+      const baseUrl = `${req.protocol}://${req.get('host')}`;
+      const url = await getAuthUrl(baseUrl);
       res.json({ url });
     } catch (error) {
       console.error('Failed to get auth URL:', error);
@@ -637,7 +638,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     if (!req.isAuthenticated()) return res.sendStatus(401);
     try {
       const code = req.query.code as string;
-      const tokens = await handleCallback(code);
+      const baseUrl = `${req.protocol}://${req.get('host')}`;
+      const tokens = await handleCallback(code, baseUrl);
       req.session.googleTokens = tokens;
       res.redirect('/dashboard');
     } catch (error) {
@@ -652,12 +654,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(401).json({ message: "Google authentication required" });
     }
     try {
-      const file = await backupToGoogleDrive(req.user.id);
+      const baseUrl = `${req.protocol}://${req.get('host')}`;
+      const file = await backupToGoogleDrive(req.user.id, baseUrl);
       res.json(file);
     } catch (error) {
       console.error('Failed to backup:', error);
       res.status(500).json({ message: "Failed to backup data" });
     }
+  });
+
+  app.get("/api/google/debug-redirect-uri", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    const baseUrl = `${req.protocol}://${req.get('host')}`;
+    const redirectUri = `${baseUrl}/api/google/callback`;
+    res.json({ 
+      redirectUri,
+      replit: {
+        slug: process.env.REPL_SLUG,
+        owner: process.env.REPL_OWNER,
+        id: process.env.REPL_ID
+      }
+    });
   });
 
   const httpServer = createServer(app);
