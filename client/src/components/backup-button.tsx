@@ -92,10 +92,10 @@ export function BackupButton({ className }: { className?: string }) {
       if (!authResponse.ok) {
         throw new Error(`Failed to get auth URL: ${await authResponse.text()}`);
       }
-      const { url } = await authResponse.json();
+      const { url: authUrl } = await authResponse.json();
 
       // If we got a URL, we need to authenticate
-      if (url) {
+      if (authUrl) {
         console.log('[Backup] Opening Google auth window');
 
         // For mobile devices, open in current window
@@ -103,7 +103,7 @@ export function BackupButton({ className }: { className?: string }) {
           // Store a flag in sessionStorage to indicate we're in the middle of a backup
           sessionStorage.setItem('pendingBackup', 'true');
           sessionStorage.setItem('returnPath', window.location.hash);
-          window.location.href = url;
+          window.location.href = authUrl;
           return; // Don't set loading false as we're redirecting
         }
 
@@ -114,7 +114,7 @@ export function BackupButton({ className }: { className?: string }) {
         const top = window.innerHeight / 2 - height / 2;
 
         const authWindow = window.open(
-          url,
+          authUrl,
           'google-auth',
           `width=${width},height=${height},left=${left},top=${top}`
         );

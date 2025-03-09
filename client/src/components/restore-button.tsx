@@ -28,18 +28,18 @@ export function RestoreButton({ className }: { className?: string }) {
       if (!authResponse.ok) {
         throw new Error(`Failed to get auth URL: ${await authResponse.text()}`);
       }
-      const { url } = await authResponse.json();
+      const { url: authUrl } = await authResponse.json();
 
       // If we got a URL, we need to authenticate
-      if (url) {
+      if (authUrl) {
         console.log('[Restore] Opening Google auth window');
 
         // For mobile devices, open in current window
         if (/Android|webOS|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
           sessionStorage.setItem('pendingRestore', 'true');
           sessionStorage.setItem('restoreDialogOpen', 'true');
-          sessionStorage.setItem('returnPath', window.location.hash); // Added line
-          window.location.href = url;
+          sessionStorage.setItem('returnPath', window.location.hash);
+          window.location.href = authUrl;
           return; // Don't set loading false as we're redirecting
         }
 
@@ -50,7 +50,7 @@ export function RestoreButton({ className }: { className?: string }) {
         const top = window.innerHeight / 2 - height / 2;
 
         const authWindow = window.open(
-          url,
+          authUrl,
           'google-auth',
           `width=${width},height=${height},left=${left},top=${top}`
         );
@@ -58,17 +58,6 @@ export function RestoreButton({ className }: { className?: string }) {
         if (!authWindow) {
           throw new Error('Popup blocked. Please allow popups and try again.');
         }
-
-        // Wait for auth to complete
-        await new Promise<void>((resolve, reject) => {
-          const handleMessage = async (event: MessageEvent) => {
-            if (event.data === 'google-auth-success') {
-              window.removeEventListener('message', handleMessage);
-              resolve();
-            }
-          };
-          window.addEventListener('message', handleMessage);
-        });
       }
 
       // Proceed with restore
