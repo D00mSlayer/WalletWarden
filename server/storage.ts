@@ -69,6 +69,11 @@ export interface IStorage {
   createDocument(userId: number, document: InsertDocument): Promise<Document>;
   updateDocument(id: number, document: InsertDocument): Promise<Document>;
   deleteDocument(id: number): Promise<void>;
+
+  // Add new methods for Google Drive integration
+  getUserByDriveEmail(email: string): Promise<User | undefined>;
+  updateUserDriveEmail(userId: number, email: string): Promise<void>;
+  clearUserData(userId: number): Promise<void>;
 }
 
 export class MemStorage implements IStorage {
@@ -505,6 +510,57 @@ export class MemStorage implements IStorage {
 
   async deleteDocument(id: number): Promise<void> {
     this.documents.delete(id);
+  }
+
+  async getUserByDriveEmail(email: string): Promise<User | undefined> {
+    return Array.from(this.users.values()).find(
+      (user) => user.driveEmail === email,
+    );
+  }
+
+  async updateUserDriveEmail(userId: number, email: string): Promise<void> {
+    const user = this.users.get(userId);
+    if (!user) throw new Error("User not found");
+
+    user.driveEmail = email;
+    this.users.set(userId, user);
+  }
+
+  async clearUserData(userId: number): Promise<void> {
+    // Delete all user data before restore
+    for (const [id, card] of this.creditCards) {
+      if (card.userId === userId) this.creditCards.delete(id);
+    }
+    for (const [id, card] of this.debitCards) {
+      if (card.userId === userId) this.debitCards.delete(id);
+    }
+    for (const [id, account] of this.bankAccounts) {
+      if (account.userId === userId) this.bankAccounts.delete(id);
+    }
+    for (const [id, loan] of this.loans) {
+      if (loan.userId === userId) {
+        // Also delete associated repayments
+        for (const [repaymentId, repayment] of this.repayments) {
+          if (repayment.loanId === id) this.repayments.delete(repaymentId);
+        }
+        this.loans.delete(id);
+      }
+    }
+    for (const [id, password] of this.passwords) {
+      if (password.userId === userId) this.passwords.delete(id);
+    }
+    for (const [id, credit] of this.customerCredits) {
+      if (credit.userId === userId) this.customerCredits.delete(id);
+    }
+    for (const [id, expense] of this.expenses) {
+      if (expense.userId === userId) this.expenses.delete(id);
+    }
+    for (const [id, sales] of this.dailySales) {
+      if (sales.userId === userId) this.dailySales.delete(id);
+    }
+    for (const [id, doc] of this.documents) {
+      if (doc.userId === userId) this.documents.delete(id);
+    }
   }
 }
 

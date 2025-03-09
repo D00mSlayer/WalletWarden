@@ -643,20 +643,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const code = req.query.code as string;
       const baseUrl = `${req.protocol}://${req.get('host')}`;
-      const tokens = await handleCallback(code, baseUrl);
-      req.session.googleTokens = tokens;
+      const { tokens, email } = await handleCallback(code, baseUrl);
 
-      // Return HTML that closes the popup and signals success
+      // Check if email is already used by another user
+      const existingUser = await storage.getUserByDriveEmail(email);
+      if (existingUser && existingUser.id !== req.user.id) {
+        throw new Error('This Google account is already linked to another user');
+      }
+
+      // Store tokens and email
+      req.session.googleTokens = tokens;
+      await storage.updateUserDriveEmail(req.user.id, email);
+
       res.send(`
         <html>
           <body>
             <script>
               if (window.opener) {
-                // Desktop flow - send message to opener and close window
                 window.opener.postMessage('google-auth-success', '*');
                 window.close();
               } else {
-                // Mobile flow - redirect back to app
                 window.location.href = '/#/dashboard';
               }
             </script>
@@ -722,6 +728,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             </style>
             <div>
               <h1>Authentication Failed</h1>
+              <p>${error.message}</p>
               <p>Redirecting back to application...</p>
             </div>
           </body>

@@ -37,6 +37,7 @@ export const users = pgTable("users", {
   username: text("username").notNull().unique(),
   password: text("password").notNull(),
   driveBackupId: text("drive_backup_id"), // Unique folder ID for Google Drive backups
+  driveEmail: text("drive_email"), // Store Google account email
   biometricEnabled: boolean("biometric_enabled").notNull().default(false),
   biometricToken: text("biometric_token"), // Token for biometric verification
 });

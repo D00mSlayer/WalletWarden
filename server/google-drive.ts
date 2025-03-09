@@ -19,23 +19,21 @@ export function configureOAuth2Client(baseUrl: string) {
 
 export async function getAuthUrl(baseUrl: string) {
   try {
-    // Ensure OAuth client is configured with current URL
     const client = configureOAuth2Client(baseUrl);
 
     const scopes = [
-      'https://www.googleapis.com/auth/drive.file' // Only request drive.file scope
+      'https://www.googleapis.com/auth/drive.file',
+      'https://www.googleapis.com/auth/userinfo.email'
     ];
 
     console.log('[Google Drive] Generating auth URL with scopes:', scopes);
 
-    // Generate a state parameter to prevent CSRF
     const state = Math.random().toString(36).substring(7);
 
     const url = client.generateAuthUrl({
       access_type: 'offline',
       scope: scopes,
       state: state,
-      // Only show consent screen if we don't have a refresh token
       prompt: 'consent'
     });
 
@@ -50,14 +48,23 @@ export async function getAuthUrl(baseUrl: string) {
 export async function handleCallback(code: string, baseUrl: string) {
   console.log('[Google Drive] Handling OAuth callback');
 
-  // Ensure OAuth client is configured with current URL
   const client = configureOAuth2Client(baseUrl);
 
   try {
     const { tokens } = await client.getToken(code);
     console.log('[Google Drive] Successfully obtained tokens');
+
+    // Get user email
     client.setCredentials(tokens);
-    return tokens;
+    const oauth2 = google.oauth2('v2');
+    const userInfo = await oauth2.userinfo.get({ auth: client });
+    const email = userInfo.data.email;
+
+    if (!email) {
+      throw new Error('Could not get Google account email');
+    }
+
+    return { tokens, email };
   } catch (error) {
     console.error('[Google Drive] Error getting tokens:', error);
     throw error;
