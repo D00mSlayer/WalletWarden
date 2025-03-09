@@ -122,11 +122,25 @@ export function BackupButton({ className }: { className?: string }) {
         if (!authWindow) {
           throw new Error('Popup blocked. Please allow popups and try again.');
         }
-      } else {
-        // No auth needed, proceed with backup
-        await performBackup();
-        setIsLoading(false);
+
+        // Wait for auth to complete
+        await new Promise<void>((resolve, reject) => {
+          const handleMessage = (event: MessageEvent) => {
+            if (event.data === 'google-auth-success') {
+              window.removeEventListener('message', handleMessage);
+              resolve();
+            } else if (event.data === 'google-auth-error') {
+              window.removeEventListener('message', handleMessage);
+              reject(new Error('Google authentication failed'));
+            }
+          };
+          window.addEventListener('message', handleMessage);
+        });
       }
+
+      // Now proceed with backup
+      await performBackup();
+      setIsLoading(false);
     } catch (error) {
       console.error('[Backup] Error:', error);
       toast({

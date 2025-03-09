@@ -58,6 +58,20 @@ export function RestoreButton({ className }: { className?: string }) {
         if (!authWindow) {
           throw new Error('Popup blocked. Please allow popups and try again.');
         }
+
+        // Wait for auth to complete
+        await new Promise<void>((resolve, reject) => {
+          const handleMessage = (event: MessageEvent) => {
+            if (event.data === 'google-auth-success') {
+              window.removeEventListener('message', handleMessage);
+              resolve();
+            } else if (event.data === 'google-auth-error') {
+              window.removeEventListener('message', handleMessage);
+              reject(new Error('Google authentication failed'));
+            }
+          };
+          window.addEventListener('message', handleMessage);
+        });
       }
 
       // Proceed with restore

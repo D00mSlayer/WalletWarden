@@ -442,6 +442,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
 
+
   // Daily Sales Routes
   app.get("/api/business/sales", async (req, res) => {
     if (!req.isAuthenticated()) return res.sendStatus(401);
@@ -625,8 +626,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     if (!req.isAuthenticated()) return res.sendStatus(401);
     try {
       const baseUrl = `${req.protocol}://${req.get('host')}`;
-      const url = await getAuthUrl(baseUrl);
-      res.json({ url });
+      const { url } = await getAuthUrl(baseUrl);
+      res.json({ url }); // Send just the URL string
     } catch (error) {
       console.error('Failed to get auth URL:', error);
       res.status(500).json({ message: "Failed to get auth URL" });
