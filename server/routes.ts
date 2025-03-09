@@ -442,7 +442,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
 
-
   // Daily Sales Routes
   app.get("/api/business/sales", async (req, res) => {
     if (!req.isAuthenticated()) return res.sendStatus(401);
@@ -653,15 +652,76 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 window.close();
               } else {
                 // Mobile flow - redirect back to app
-                window.location.href = '/';
+                window.location.href = '/#/dashboard';
               }
             </script>
+            <style>
+              body {
+                font-family: system-ui, -apple-system, sans-serif;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                min-height: 100vh;
+                margin: 0;
+                background: #f5f5f5;
+              }
+              div {
+                text-align: center;
+                padding: 2rem;
+                background: white;
+                border-radius: 8px;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+              }
+              h1 { margin-bottom: 1rem; color: #333; }
+              p { color: #666; }
+            </style>
+            <div>
+              <h1>Authentication Successful</h1>
+              <p>Redirecting back to application...</p>
+            </div>
           </body>
         </html>
       `);
     } catch (error) {
       console.error('Failed to handle callback:', error);
-      res.status(500).json({ message: "Failed to authenticate with Google" });
+      res.status(500).send(`
+        <html>
+          <body>
+            <script>
+              if (window.opener) {
+                window.opener.postMessage('google-auth-error', '*');
+                window.close();
+              } else {
+                window.location.href = '/#/dashboard?error=auth-failed';
+              }
+            </script>
+            <style>
+              body {
+                font-family: system-ui, -apple-system, sans-serif;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                min-height: 100vh;
+                margin: 0;
+                background: #f5f5f5;
+              }
+              div {
+                text-align: center;
+                padding: 2rem;
+                background: white;
+                border-radius: 8px;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+              }
+              h1 { margin-bottom: 1rem; color: #333; }
+              p { color: #666; }
+            </style>
+            <div>
+              <h1>Authentication Failed</h1>
+              <p>Redirecting back to application...</p>
+            </div>
+          </body>
+        </html>
+      `);
     }
   });
 

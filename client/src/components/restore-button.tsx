@@ -37,6 +37,8 @@ export function RestoreButton({ className }: { className?: string }) {
         // For mobile devices, open in current window
         if (/Android|webOS|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
           sessionStorage.setItem('pendingRestore', 'true');
+          sessionStorage.setItem('restoreDialogOpen', 'true');
+          sessionStorage.setItem('returnPath', window.location.hash); // Added line
           window.location.href = url;
           return; // Don't set loading false as we're redirecting
         }
@@ -96,6 +98,7 @@ export function RestoreButton({ className }: { className?: string }) {
     } finally {
       setIsLoading(false);
       setDialogOpen(false);
+      sessionStorage.removeItem('restoreDialogOpen');
     }
   };
 
@@ -104,15 +107,20 @@ export function RestoreButton({ className }: { className?: string }) {
     setDialogOpen(true);
   };
 
-  // Setup mobile auth return handler
+  // Setup mobile auth return handler and dialog state
   useEffect(() => {
     const checkMobileAuth = async () => {
       const pendingRestore = sessionStorage.getItem('pendingRestore');
+      const restoreDialogOpen = sessionStorage.getItem('restoreDialogOpen');
+
+      if (restoreDialogOpen) {
+        setDialogOpen(true);
+      }
+
       if (pendingRestore) {
         sessionStorage.removeItem('pendingRestore');
         console.log('[Restore] Detected return from mobile auth');
         try {
-          setDialogOpen(true);
           await handleRestore();
         } catch (error) {
           console.error('[Restore] Error after mobile auth:', error);
@@ -122,6 +130,7 @@ export function RestoreButton({ className }: { className?: string }) {
             variant: "destructive",
           });
           setDialogOpen(false);
+          sessionStorage.removeItem('restoreDialogOpen');
         }
       }
     };
@@ -164,7 +173,10 @@ export function RestoreButton({ className }: { className?: string }) {
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel onClick={() => setDialogOpen(false)}>Cancel</AlertDialogCancel>
+          <AlertDialogCancel onClick={() => {
+            setDialogOpen(false);
+            sessionStorage.removeItem('restoreDialogOpen');
+          }}>Cancel</AlertDialogCancel>
           <AlertDialogAction onClick={handleRestore}>
             Continue
           </AlertDialogAction>

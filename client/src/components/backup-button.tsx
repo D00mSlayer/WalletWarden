@@ -30,8 +30,11 @@ export function BackupButton({ className }: { className?: string }) {
     // Check if we're returning from a mobile auth flow
     const checkMobileAuth = async () => {
       const pendingBackup = sessionStorage.getItem('pendingBackup');
+      const returnPath = sessionStorage.getItem('returnPath');
+
       if (pendingBackup) {
         sessionStorage.removeItem('pendingBackup');
+        sessionStorage.removeItem('returnPath');
         console.log('[Backup] Detected return from mobile auth');
         try {
           await performBackup();
@@ -99,6 +102,7 @@ export function BackupButton({ className }: { className?: string }) {
         if (/Android|webOS|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
           // Store a flag in sessionStorage to indicate we're in the middle of a backup
           sessionStorage.setItem('pendingBackup', 'true');
+          sessionStorage.setItem('returnPath', window.location.hash);
           window.location.href = url;
           return; // Don't set loading false as we're redirecting
         }
