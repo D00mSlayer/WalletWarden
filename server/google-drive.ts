@@ -27,7 +27,6 @@ export async function getAuthUrl(baseUrl: string) {
     ];
 
     console.log('[Google Drive] Generating auth URL with scopes:', scopes);
-
     const state = Math.random().toString(36).substring(7);
 
     const url = client.generateAuthUrl({
@@ -100,16 +99,19 @@ async function findOrCreateBackupFolder(drive: any, userId: number, username: st
     console.log('[Google Drive] Created new app folder:', appFolderId);
   }
 
-  // Check if user folder exists
+  // Check if user folder exists and delete any duplicates
   const userFolderResponse = await drive.files.list({
-    q: `name='${userFolderName}' and '${appFolderId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,
+    q: `name='${userFolderName}' and mimeType='application/vnd.google-apps.folder' and trashed=false`,
     fields: 'files(id, name)',
     spaces: 'drive'
   });
 
+  // Delete all existing user folders to prevent duplicates
   if (userFolderResponse.data.files && userFolderResponse.data.files.length > 0) {
-    console.log('[Google Drive] Found existing user folder:', userFolderResponse.data.files[0].id);
-    return userFolderResponse.data.files[0].id;
+    for (const file of userFolderResponse.data.files) {
+      await drive.files.delete({ fileId: file.id });
+      console.log('[Google Drive] Deleted existing user folder:', file.id);
+    }
   }
 
   // Create new user folder
@@ -156,13 +158,14 @@ export async function backupToGoogleDrive(userId: number, username: string, base
       data.loanRepayments[loan.id] = await storage.getRepayments(loan.id);
     }
 
+    // Delete existing backup files
     const existingFiles = await drive.files.list({
       q: `'${folderId}' in parents and mimeType='application/json' and trashed=false`,
       fields: 'files(id, name)',
       spaces: 'drive'
     });
 
-    if (existingFiles.data.files && existingFiles.data.files.length > 0) {
+    if (existingFiles.data.files) {
       for (const file of existingFiles.data.files) {
         await drive.files.delete({ fileId: file.id });
         console.log('[Google Drive] Deleted old backup file:', file.id);
@@ -227,7 +230,7 @@ export async function getLatestBackup(userId: number, username: string, baseUrl:
       alt: 'media'
     });
 
-    return JSON.parse(fileResponse.data); //Parse the JSON response
+    return fileResponse.data;
   } catch (error) {
     console.error('[Google Drive] Failed to fetch latest backup:', error);
     throw error;

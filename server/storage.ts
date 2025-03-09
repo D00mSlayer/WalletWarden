@@ -89,15 +89,15 @@ export class MemStorage implements IStorage {
   private expenses: Map<number, Expense>;
   private documents: Map<number, Document>;
   private currentUserId: number;
-  private currentCardId: number;
-  private currentAccountId: number;
-  private currentLoanId: number;
-  private currentRepaymentId: number;
-  private currentPasswordId: number;
-  private currentCustomerCreditId: number;
-  private currentDailySalesId: number;
-  private currentExpenseId: number;
-  private currentDocumentId: number;
+  private currentCardId: number = 1;
+  private currentAccountId: number = 1;
+  private currentLoanId: number = 1;
+  private currentRepaymentId: number = 1;
+  private currentPasswordId: number = 1;
+  private currentCustomerCreditId: number = 1;
+  private currentDailySalesId: number = 1;
+  private currentExpenseId: number = 1;
+  private currentDocumentId: number = 1;
   sessionStore: session.Store;
 
   constructor() {
@@ -113,15 +113,6 @@ export class MemStorage implements IStorage {
     this.expenses = new Map();
     this.documents = new Map();
     this.currentUserId = 1;
-    this.currentCardId = 1;
-    this.currentAccountId = 1;
-    this.currentLoanId = 1;
-    this.currentRepaymentId = 1;
-    this.currentPasswordId = 1;
-    this.currentCustomerCreditId = 1;
-    this.currentDailySalesId = 1;
-    this.currentExpenseId = 1;
-    this.currentDocumentId = 1;
     this.sessionStore = new MemoryStore({
       checkPeriod: 86400000,
     });
@@ -139,7 +130,14 @@ export class MemStorage implements IStorage {
 
   async createUser(insertUser: InsertUser): Promise<User> {
     const id = this.currentUserId++;
-    const user: User = { ...insertUser, id };
+    const user: User = { 
+      ...insertUser, 
+      id,
+      driveBackupId: null,
+      driveEmail: null,
+      biometricEnabled: false,
+      biometricToken: null
+    };
     this.users.set(id, user);
     return user;
   }
@@ -522,12 +520,17 @@ export class MemStorage implements IStorage {
     const user = this.users.get(userId);
     if (!user) throw new Error("User not found");
 
+    // Check if email is already used by another user
+    const existingUser = await this.getUserByDriveEmail(email);
+    if (existingUser && existingUser.id !== userId) {
+      throw new Error("This Google account is already linked to another user");
+    }
+
     user.driveEmail = email;
     this.users.set(userId, user);
   }
 
   async clearUserData(userId: number): Promise<void> {
-    // Delete all user data before restore
     for (const [id, card] of this.creditCards) {
       if (card.userId === userId) this.creditCards.delete(id);
     }
@@ -539,7 +542,6 @@ export class MemStorage implements IStorage {
     }
     for (const [id, loan] of this.loans) {
       if (loan.userId === userId) {
-        // Also delete associated repayments
         for (const [repaymentId, repayment] of this.repayments) {
           if (repayment.loanId === id) this.repayments.delete(repaymentId);
         }
@@ -562,6 +564,33 @@ export class MemStorage implements IStorage {
       if (doc.userId === userId) this.documents.delete(id);
     }
   }
+
+  async initializeStorage(): Promise<void> {
+    this.users.clear();
+    this.creditCards.clear();
+    this.debitCards.clear();
+    this.bankAccounts.clear();
+    this.loans.clear();
+    this.repayments.clear();
+    this.passwords.clear();
+    this.customerCredits.clear();
+    this.dailySales.clear();
+    this.expenses.clear();
+    this.documents.clear();
+    this.currentUserId = 1;
+    this.currentCardId = 1;
+    this.currentAccountId = 1;
+    this.currentLoanId = 1;
+    this.currentRepaymentId = 1;
+    this.currentPasswordId = 1;
+    this.currentCustomerCreditId = 1;
+    this.currentDailySalesId = 1;
+    this.currentExpenseId = 1;
+    this.currentDocumentId = 1;
+  }
 }
 
+// Initialize storage and export a singleton instance
 export const storage = new MemStorage();
+// Clear all data on startup to ensure clean state
+storage.initializeStorage();
