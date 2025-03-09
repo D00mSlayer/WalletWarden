@@ -1,7 +1,6 @@
 import passport from "passport";
 import { Strategy as LocalStrategy } from "passport-local";
 import { Express } from "express";
-import session from "express-session";
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
 import { storage } from "./storage";
@@ -42,22 +41,6 @@ async function comparePasswords(supplied: string, stored: string) {
 }
 
 export function setupAuth(app: Express) {
-  const sessionSettings: session.SessionOptions = {
-    secret: process.env.SESSION_SECRET!,
-    resave: false,
-    saveUninitialized: false,
-    store: storage.sessionStore,
-    name: 'financial.sid', // Custom session ID name
-    cookie: {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      maxAge: 24 * 60 * 60 * 1000, // 24 hours
-    },
-    rolling: true // Extend session with each request
-  };
-
-  app.set("trust proxy", 1);
-  app.use(session(sessionSettings));
   app.use(passport.initialize());
   app.use(passport.session());
 
@@ -76,7 +59,6 @@ export function setupAuth(app: Express) {
   );
 
   passport.serializeUser((user, done) => done(null, user.id));
-
   passport.deserializeUser(async (id: number, done) => {
     try {
       const user = await storage.getUser(id);
@@ -101,7 +83,7 @@ export function setupAuth(app: Express) {
         password: await hashPassword(req.body.password),
       });
 
-      // Clear any existing session
+      // Clear any existing session data and store
       await new Promise<void>((resolve, reject) => {
         req.session.destroy((err) => {
           if (err) reject(err);
@@ -149,10 +131,10 @@ export function setupAuth(app: Express) {
       storage.clearUserData(req.user.id);
     }
 
-    // Destroy session
+    // Clear session cookie and destroy session
     req.session.destroy((err) => {
       if (err) return next(err);
-      res.clearCookie('financial.sid'); // Clear session cookie
+      res.clearCookie('financial.sid');
       res.sendStatus(200);
     });
   });

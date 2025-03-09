@@ -11,7 +11,10 @@ const app = express();
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: false, limit: '10mb' }));
 
-// Configure session first
+// Set trust proxy for secure cookies in production
+app.set("trust proxy", 1);
+
+// Configure session first - before ANY other middleware
 const sessionConfig = {
   secret: process.env.SESSION_SECRET || 'dev-secret-key',
   resave: false,
@@ -25,6 +28,10 @@ const sessionConfig = {
   },
 };
 
+// Clear the session store on startup
+storage.sessionStore.clear();
+
+// Initialize session middleware
 app.use(session(sessionConfig));
 
 // Initialize authentication after session
