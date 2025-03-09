@@ -7,10 +7,6 @@ import { setupAuth } from "./auth";
 
 const app = express();
 
-// Increase JSON payload limit for file uploads
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: false, limit: '10mb' }));
-
 // Set trust proxy for secure cookies in production
 app.set("trust proxy", 1);
 
@@ -28,14 +24,15 @@ const sessionConfig = {
   },
 };
 
-// Clear the session store on startup
-storage.sessionStore.clear();
-
 // Initialize session middleware
 app.use(session(sessionConfig));
 
 // Initialize authentication after session
 setupAuth(app);
+
+// Initialize body parsers after session
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: false, limit: '10mb' }));
 
 // Request logging middleware
 app.use((req, res, next) => {
