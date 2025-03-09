@@ -20,7 +20,6 @@ export function configureOAuth2Client(baseUrl: string) {
 export async function getAuthUrl(baseUrl: string) {
   try {
     const client = configureOAuth2Client(baseUrl);
-
     const scopes = [
       'https://www.googleapis.com/auth/drive.file',
       'https://www.googleapis.com/auth/userinfo.email'
@@ -74,7 +73,9 @@ async function findOrCreateBackupFolder(drive: any, userId: number, username: st
   const appFolderName = 'Financial App Backups';
   const userFolderName = `User_${userId}_${username}`;
 
-  // Check if main app folder exists
+  console.log(`[Google Drive] Looking for backup folders for user: ${userId} (${username})`);
+
+  // First, ensure we have only one app folder
   const appFolderResponse = await drive.files.list({
     q: `name='${appFolderName}' and mimeType='application/vnd.google-apps.folder' and trashed=false`,
     fields: 'files(id, name)',
@@ -83,8 +84,13 @@ async function findOrCreateBackupFolder(drive: any, userId: number, username: st
 
   let appFolderId;
   if (appFolderResponse.data.files && appFolderResponse.data.files.length > 0) {
+    // Use the first folder and delete any duplicates
     appFolderId = appFolderResponse.data.files[0].id;
-    console.log('[Google Drive] Found existing app folder:', appFolderId);
+    for (let i = 1; i < appFolderResponse.data.files.length; i++) {
+      await drive.files.delete({ fileId: appFolderResponse.data.files[i].id });
+      console.log('[Google Drive] Deleted duplicate app folder:', appFolderResponse.data.files[i].id);
+    }
+    console.log('[Google Drive] Using existing app folder:', appFolderId);
   } else {
     // Create main app folder
     const appFolderMetadata = {
@@ -99,18 +105,22 @@ async function findOrCreateBackupFolder(drive: any, userId: number, username: st
     console.log('[Google Drive] Created new app folder:', appFolderId);
   }
 
-  // Check if user folder exists and delete any duplicates
+  // Find all user folders (including possibly duplicated ones)
   const userFolderResponse = await drive.files.list({
-    q: `name='${userFolderName}' and mimeType='application/vnd.google-apps.folder' and trashed=false`,
+    q: `name='${userFolderName}' and '${appFolderId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,
     fields: 'files(id, name)',
     spaces: 'drive'
   });
 
   // Delete all existing user folders to prevent duplicates
-  if (userFolderResponse.data.files && userFolderResponse.data.files.length > 0) {
+  if (userFolderResponse.data.files) {
     for (const file of userFolderResponse.data.files) {
-      await drive.files.delete({ fileId: file.id });
-      console.log('[Google Drive] Deleted existing user folder:', file.id);
+      try {
+        await drive.files.delete({ fileId: file.id });
+        console.log('[Google Drive] Deleted existing user folder:', file.id);
+      } catch (error) {
+        console.error('[Google Drive] Error deleting folder:', error);
+      }
     }
   }
 
@@ -158,7 +168,7 @@ export async function backupToGoogleDrive(userId: number, username: string, base
       data.loanRepayments[loan.id] = await storage.getRepayments(loan.id);
     }
 
-    // Delete existing backup files
+    // Delete any existing backup files
     const existingFiles = await drive.files.list({
       q: `'${folderId}' in parents and mimeType='application/json' and trashed=false`,
       fields: 'files(id, name)',
@@ -202,7 +212,7 @@ export async function backupToGoogleDrive(userId: number, username: string, base
 
 export async function getLatestBackup(userId: number, username: string, baseUrl: string, tokens: any) {
   try {
-    console.log('[Google Drive] Fetching latest backup');
+    console.log('[Google Drive] Fetching latest backup for user:', userId);
 
     const client = configureOAuth2Client(baseUrl);
     client.setCredentials(tokens);
