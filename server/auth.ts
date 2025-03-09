@@ -73,9 +73,14 @@ export function setupAuth(app: Express) {
 
   app.post("/api/register", async (req, res, next) => {
     try {
+      // Validate request body
+      if (!req.body || !req.body.username || !req.body.password) {
+        return res.status(400).json({ message: "Username and password are required" });
+      }
+
       const existingUser = await storage.getUserByUsername(req.body.username);
       if (existingUser) {
-        return res.status(400).send("Username already exists");
+        return res.status(400).json({ message: "Username already exists" });
       }
 
       const user = await storage.createUser({
@@ -83,15 +88,6 @@ export function setupAuth(app: Express) {
         password: await hashPassword(req.body.password),
       });
 
-      // Clear any existing session data and store
-      await new Promise<void>((resolve, reject) => {
-        req.session.destroy((err) => {
-          if (err) reject(err);
-          else resolve();
-        });
-      });
-
-      // Create new session with the new user
       req.login(user, (err) => {
         if (err) return next(err);
         res.status(201).json(user);
@@ -103,13 +99,10 @@ export function setupAuth(app: Express) {
 
   app.post("/api/login", async (req, res, next) => {
     try {
-      // Clear any existing session before login
-      await new Promise<void>((resolve, reject) => {
-        req.session.destroy((err) => {
-          if (err) reject(err);
-          else resolve();
-        });
-      });
+      // Validate request body
+      if (!req.body || !req.body.username || !req.body.password) {
+        return res.status(400).json({ message: "Username and password are required" });
+      }
 
       passport.authenticate("local", (err, user) => {
         if (err) return next(err);
@@ -126,12 +119,10 @@ export function setupAuth(app: Express) {
   });
 
   app.post("/api/logout", (req, res, next) => {
-    // Clear user data from memory storage for extra security
     if (req.user) {
       storage.clearUserData(req.user.id);
     }
 
-    // Clear session cookie and destroy session
     req.session.destroy((err) => {
       if (err) return next(err);
       res.clearCookie('financial.sid');
