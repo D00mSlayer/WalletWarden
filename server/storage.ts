@@ -10,67 +10,65 @@ export interface IStorage {
   createUser(user: InsertUser): Promise<User>;
 
   getCreditCards(userId: number): Promise<CreditCard[]>;
-  getCreditCard(id: number): Promise<CreditCard | undefined>;
+  getCreditCard(userId: number, id: number): Promise<CreditCard | undefined>;
   createCreditCard(userId: number, card: InsertCreditCard): Promise<CreditCard>;
-  updateCreditCard(id: number, card: InsertCreditCard): Promise<CreditCard>;
-  deleteCreditCard(id: number): Promise<void>;
+  updateCreditCard(userId: number, id: number, card: InsertCreditCard): Promise<CreditCard>;
+  deleteCreditCard(userId: number, id: number): Promise<void>;
 
   getDebitCards(userId: number): Promise<DebitCard[]>;
-  getDebitCard(id: number): Promise<DebitCard | undefined>;
+  getDebitCard(userId: number, id: number): Promise<DebitCard | undefined>;
   createDebitCard(userId: number, card: InsertDebitCard): Promise<DebitCard>;
-  updateDebitCard(id: number, card: InsertDebitCard): Promise<DebitCard>;
-  deleteDebitCard(id: number): Promise<void>;
+  updateDebitCard(userId: number, id: number, card: InsertDebitCard): Promise<DebitCard>;
+  deleteDebitCard(userId: number, id: number): Promise<void>;
 
   getBankAccounts(userId: number): Promise<BankAccount[]>;
-  getBankAccount(id: number): Promise<BankAccount | undefined>;
+  getBankAccount(userId: number, id: number): Promise<BankAccount | undefined>;
   createBankAccount(userId: number, account: InsertBankAccount): Promise<BankAccount>;
-  updateBankAccount(id: number, account: InsertBankAccount): Promise<BankAccount>;
-  deleteBankAccount(id: number): Promise<void>;
+  updateBankAccount(userId: number, id: number, account: InsertBankAccount): Promise<BankAccount>;
+  deleteBankAccount(userId: number, id: number): Promise<void>;
 
   getLoans(userId: number): Promise<Loan[]>;
-  getLoan(id: number): Promise<Loan | undefined>;
+  getLoan(userId: number, id: number): Promise<Loan | undefined>;
   createLoan(userId: number, loan: InsertLoan): Promise<Loan>;
-  updateLoan(id: number, loan: Partial<InsertLoan>): Promise<Loan>;
-  completeLoan(id: number): Promise<Loan>;
-  deleteLoan(id: number): Promise<void>;
+  updateLoan(userId: number, id: number, loan: Partial<InsertLoan>): Promise<Loan>;
+  completeLoan(userId: number, id: number): Promise<Loan>;
+  deleteLoan(userId: number, id: number): Promise<void>;
 
   getRepayments(loanId: number): Promise<Repayment[]>;
   createRepayment(loanId: number, repayment: InsertRepayment): Promise<Repayment>;
   deleteRepayment(id: number): Promise<void>;
 
   getPasswords(userId: number): Promise<Password[]>;
-  getPassword(id: number): Promise<Password | undefined>;
+  getPassword(userId: number, id: number): Promise<Password | undefined>;
   createPassword(userId: number, password: InsertPassword): Promise<Password>;
-  updatePassword(id: number, password: InsertPassword): Promise<Password>;
-  deletePassword(id: number): Promise<void>;
+  updatePassword(userId: number, id: number, password: InsertPassword): Promise<Password>;
+  deletePassword(userId: number, id: number): Promise<void>;
 
-  sessionStore: session.Store;
   getCustomerCredits(userId: number): Promise<CustomerCredit[]>;
-  getCustomerCredit(id: number): Promise<CustomerCredit | undefined>;
+  getCustomerCredit(userId: number, id: number): Promise<CustomerCredit | undefined>;
   createCustomerCredit(userId: number, credit: InsertCustomerCredit): Promise<CustomerCredit>;
-  markCustomerCreditPaid(id: number): Promise<CustomerCredit>;
-  deleteCustomerCredit(id: number): Promise<void>;
+  markCustomerCreditPaid(userId: number, id: number): Promise<CustomerCredit>;
+  deleteCustomerCredit(userId: number, id: number): Promise<void>;
 
-  // Daily Sales methods
   getDailySales(userId: number): Promise<DailySales[]>;
-  getDailySalesById(id: number): Promise<DailySales | undefined>;
+  getDailySalesById(userId: number, id: number): Promise<DailySales | undefined>;
   createDailySales(userId: number, sales: InsertDailySales): Promise<DailySales>;
-  updateDailySales(id: number, sales: InsertDailySales): Promise<DailySales>;
-  deleteDailySales(id: number): Promise<void>;
+  updateDailySales(userId: number, id: number, sales: InsertDailySales): Promise<DailySales>;
+  deleteDailySales(userId: number, id: number): Promise<void>;
 
   getExpenses(userId: number): Promise<Expense[]>;
-  getExpense(id: number): Promise<Expense | undefined>;
+  getExpense(userId: number, id: number): Promise<Expense | undefined>;
   createExpense(userId: number, expense: InsertExpense): Promise<Expense>;
-  deleteExpense(id: number): Promise<void>;
+  deleteExpense(userId: number, id: number): Promise<void>;
 
-  // Document methods
   getDocuments(userId: number): Promise<Document[]>;
-  getDocument(id: number): Promise<Document | undefined>;
+  getDocument(userId: number, id: number): Promise<Document | undefined>;
   createDocument(userId: number, document: InsertDocument): Promise<Document>;
-  updateDocument(id: number, document: InsertDocument): Promise<Document>;
-  deleteDocument(id: number): Promise<void>;
+  updateDocument(userId: number, id: number, document: InsertDocument): Promise<Document>;
+  deleteDocument(userId: number, id: number): Promise<void>;
 
-  // Add new methods for Google Drive integration
+  sessionStore: session.Store;
+
   getUserByDriveEmail(email: string): Promise<User | undefined>;
   updateUserDriveEmail(userId: number, email: string): Promise<void>;
   clearUserData(userId: number): Promise<void>;
@@ -130,6 +128,12 @@ export class MemStorage implements IStorage {
     return currentId;
   }
 
+  private validateUserAccess(userId: number, item: { userId: number } | undefined, errorMessage: string): void {
+    if (!item || item.userId !== userId) {
+      throw new Error(errorMessage);
+    }
+  }
+
   async getUser(id: number): Promise<User | undefined> {
     return this.users.get(id);
   }
@@ -170,71 +174,13 @@ export class MemStorage implements IStorage {
     this.users.set(userId, user);
   }
 
-  // Reset all data counters and clear all maps
-  async initializeStorage(): Promise<void> {
-    this.users.clear();
-    this.creditCards.clear();
-    this.debitCards.clear();
-    this.bankAccounts.clear();
-    this.loans.clear();
-    this.repayments.clear();
-    this.passwords.clear();
-    this.customerCredits.clear();
-    this.dailySales.clear();
-    this.expenses.clear();
-    this.documents.clear();
-
-    this.currentUserId = 1;
-    this.currentIds = new Map([
-      ['card', 1],
-      ['account', 1],
-      ['loan', 1],
-      ['repayment', 1],
-      ['password', 1],
-      ['credit', 1],
-      ['sales', 1],
-      ['expense', 1],
-      ['document', 1]
-    ]);
-  }
-
-  // Clear all data for a specific user
-  async clearUserData(userId: number): Promise<void> {
-    if (!this.users.has(userId)) {
-      throw new Error("User not found");
-    }
-
-    // Delete all data associated with this user
-    this.creditCards = new Map([...this.creditCards].filter(([_, card]) => card.userId !== userId));
-    this.debitCards = new Map([...this.debitCards].filter(([_, card]) => card.userId !== userId));
-    this.bankAccounts = new Map([...this.bankAccounts].filter(([_, acc]) => acc.userId !== userId));
-    this.loans = new Map([...this.loans].filter(([_, loan]) => loan.userId !== userId));
-    this.passwords = new Map([...this.passwords].filter(([_, pwd]) => pwd.userId !== userId));
-    this.customerCredits = new Map([...this.customerCredits].filter(([_, credit]) => credit.userId !== userId));
-    this.dailySales = new Map([...this.dailySales].filter(([_, sale]) => sale.userId !== userId));
-    this.expenses = new Map([...this.expenses].filter(([_, exp]) => exp.userId !== userId));
-    this.documents = new Map([...this.documents].filter(([_, doc]) => doc.userId !== userId));
-
-    // Clear repayments for user's loans
-    this.repayments = new Map([...this.repayments].filter(([_, repay]) => {
-      const loan = this.loans.get(repay.loanId);
-      return loan && loan.userId !== userId;
-    }));
-  }
-
-  private validateUserAccess(userId: number, item: { userId: number } | undefined, errorMessage: string): void {
-    if (!item || item.userId !== userId) {
-      throw new Error(errorMessage);
-    }
-  }
-
   async getCreditCards(userId: number): Promise<CreditCard[]> {
     return Array.from(this.creditCards.values()).filter(card => card.userId === userId);
   }
 
-  async getCreditCard(id: number): Promise<CreditCard | undefined> {
+  async getCreditCard(userId: number, id: number): Promise<CreditCard | undefined> {
     const card = this.creditCards.get(id);
-    this.validateUserAccess(userId,card, "Credit card not found or user does not have access.");
+    this.validateUserAccess(userId, card, "Credit card not found or user does not have access");
     return card;
   }
 
@@ -245,17 +191,17 @@ export class MemStorage implements IStorage {
     return creditCard;
   }
 
-  async updateCreditCard(id: number, card: InsertCreditCard): Promise<CreditCard> {
-    const existing = await this.getCreditCard(id);
+  async updateCreditCard(userId: number, id: number, card: InsertCreditCard): Promise<CreditCard> {
+    const existing = await this.getCreditCard(userId, id);
     if (!existing) throw new Error("Credit card not found");
-    const updated: CreditCard = { ...card, id, userId: existing.userId };
+    const updated: CreditCard = { ...card, id, userId };
     this.creditCards.set(id, updated);
     return updated;
   }
 
-  async deleteCreditCard(id: number): Promise<void> {
-    const card = this.creditCards.get(id);
-    if(!card) throw new Error("Credit card not found");
+  async deleteCreditCard(userId: number, id: number): Promise<void> {
+    const card = await this.getCreditCard(userId, id);
+    if (!card) throw new Error("Credit card not found");
     this.creditCards.delete(id);
   }
 
@@ -263,9 +209,9 @@ export class MemStorage implements IStorage {
     return Array.from(this.debitCards.values()).filter(card => card.userId === userId);
   }
 
-  async getDebitCard(id: number): Promise<DebitCard | undefined> {
+  async getDebitCard(userId: number, id: number): Promise<DebitCard | undefined> {
     const card = this.debitCards.get(id);
-    this.validateUserAccess(userId, card, "Debit card not found or user does not have access.");
+    this.validateUserAccess(userId, card, "Debit card not found or user does not have access");
     return card;
   }
 
@@ -276,17 +222,17 @@ export class MemStorage implements IStorage {
     return debitCard;
   }
 
-  async updateDebitCard(id: number, card: InsertDebitCard): Promise<DebitCard> {
-    const existing = await this.getDebitCard(id);
+  async updateDebitCard(userId: number, id: number, card: InsertDebitCard): Promise<DebitCard> {
+    const existing = await this.getDebitCard(userId, id);
     if (!existing) throw new Error("Debit card not found");
-    const updated: DebitCard = { ...card, id, userId: existing.userId };
+    const updated: DebitCard = { ...card, id, userId };
     this.debitCards.set(id, updated);
     return updated;
   }
 
-  async deleteDebitCard(id: number): Promise<void> {
-    const card = this.debitCards.get(id);
-    if(!card) throw new Error("Debit card not found");
+  async deleteDebitCard(userId: number, id: number): Promise<void> {
+    const card = await this.getDebitCard(userId, id);
+    if (!card) throw new Error("Debit card not found");
     this.debitCards.delete(id);
   }
 
@@ -294,9 +240,9 @@ export class MemStorage implements IStorage {
     return Array.from(this.bankAccounts.values()).filter(account => account.userId === userId);
   }
 
-  async getBankAccount(id: number): Promise<BankAccount | undefined> {
+  async getBankAccount(userId: number, id: number): Promise<BankAccount | undefined> {
     const account = this.bankAccounts.get(id);
-    this.validateUserAccess(userId, account, "Bank account not found or user does not have access.");
+    this.validateUserAccess(userId, account, "Bank account not found or user does not have access");
     return account;
   }
 
@@ -307,17 +253,17 @@ export class MemStorage implements IStorage {
     return bankAccount;
   }
 
-  async updateBankAccount(id: number, account: InsertBankAccount): Promise<BankAccount> {
-    const existing = await this.getBankAccount(id);
+  async updateBankAccount(userId: number, id: number, account: InsertBankAccount): Promise<BankAccount> {
+    const existing = await this.getBankAccount(userId, id);
     if (!existing) throw new Error("Bank account not found");
-    const updated: BankAccount = { ...account, id, userId: existing.userId };
+    const updated: BankAccount = { ...account, id, userId };
     this.bankAccounts.set(id, updated);
     return updated;
   }
 
-  async deleteBankAccount(id: number): Promise<void> {
-    const account = this.bankAccounts.get(id);
-    if(!account) throw new Error("Bank account not found");
+  async deleteBankAccount(userId: number, id: number): Promise<void> {
+    const account = await this.getBankAccount(userId, id);
+    if (!account) throw new Error("Bank account not found");
     this.bankAccounts.delete(id);
   }
 
@@ -325,9 +271,9 @@ export class MemStorage implements IStorage {
     return Array.from(this.loans.values()).filter(loan => loan.userId === userId);
   }
 
-  async getLoan(id: number): Promise<Loan | undefined> {
+  async getLoan(userId: number, id: number): Promise<Loan | undefined> {
     const loan = this.loans.get(id);
-    this.validateUserAccess(userId, loan, "Loan not found or user does not have access.");
+    this.validateUserAccess(userId, loan, "Loan not found or user does not have access");
     return loan;
   }
 
@@ -345,16 +291,16 @@ export class MemStorage implements IStorage {
     return newLoan;
   }
 
-  async updateLoan(id: number, loan: Partial<InsertLoan>): Promise<Loan> {
-    const existing = await this.getLoan(id);
+  async updateLoan(userId: number, id: number, loan: Partial<InsertLoan>): Promise<Loan> {
+    const existing = await this.getLoan(userId, id);
     if (!existing) throw new Error("Loan not found");
     const updated: Loan = { ...existing, ...loan };
     this.loans.set(id, updated);
     return updated;
   }
 
-  async completeLoan(id: number): Promise<Loan> {
-    const existing = await this.getLoan(id);
+  async completeLoan(userId: number, id: number): Promise<Loan> {
+    const existing = await this.getLoan(userId, id);
     if (!existing) throw new Error("Loan not found");
     const updated: Loan = {
       ...existing,
@@ -365,9 +311,9 @@ export class MemStorage implements IStorage {
     return updated;
   }
 
-  async deleteLoan(id: number): Promise<void> {
-    const loan = this.loans.get(id);
-    if(!loan) throw new Error("Loan not found");
+  async deleteLoan(userId: number, id: number): Promise<void> {
+    const loan = await this.getLoan(userId, id);
+    if (!loan) throw new Error("Loan not found");
     this.loans.delete(id);
     // Also delete associated repayments
     this.repayments = new Map([...this.repayments].filter(([_, repayment]) => repayment.loanId !== id));
@@ -384,7 +330,7 @@ export class MemStorage implements IStorage {
       id,
       loanId,
       date: repayment.date ? new Date(repayment.date) : new Date(),
-      amount: String(repayment.amount), // Convert to string as per schema
+      amount: String(repayment.amount),
       note: repayment.note || null,
     };
     this.repayments.set(id, newRepayment);
@@ -393,7 +339,7 @@ export class MemStorage implements IStorage {
 
   async deleteRepayment(id: number): Promise<void> {
     const repayment = this.repayments.get(id);
-    if(!repayment) throw new Error("Repayment not found");
+    if (!repayment) throw new Error("Repayment not found");
     this.repayments.delete(id);
   }
 
@@ -401,9 +347,9 @@ export class MemStorage implements IStorage {
     return Array.from(this.passwords.values()).filter(password => password.userId === userId);
   }
 
-  async getPassword(id: number): Promise<Password | undefined> {
+  async getPassword(userId: number, id: number): Promise<Password | undefined> {
     const password = this.passwords.get(id);
-    this.validateUserAccess(userId, password, "Password not found or user does not have access.");
+    this.validateUserAccess(userId, password, "Password not found or user does not have access");
     return password;
   }
 
@@ -414,17 +360,17 @@ export class MemStorage implements IStorage {
     return newPassword;
   }
 
-  async updatePassword(id: number, password: InsertPassword): Promise<Password> {
-    const existing = await this.getPassword(id);
+  async updatePassword(userId: number, id: number, password: InsertPassword): Promise<Password> {
+    const existing = await this.getPassword(userId, id);
     if (!existing) throw new Error("Password not found");
-    const updated: Password = { ...password, id, userId: existing.userId };
+    const updated: Password = { ...password, id, userId };
     this.passwords.set(id, updated);
     return updated;
   }
 
-  async deletePassword(id: number): Promise<void> {
-    const password = this.passwords.get(id);
-    if(!password) throw new Error("Password not found");
+  async deletePassword(userId: number, id: number): Promise<void> {
+    const password = await this.getPassword(userId, id);
+    if (!password) throw new Error("Password not found");
     this.passwords.delete(id);
   }
 
@@ -432,9 +378,9 @@ export class MemStorage implements IStorage {
     return Array.from(this.customerCredits.values()).filter(credit => credit.userId === userId);
   }
 
-  async getCustomerCredit(id: number): Promise<CustomerCredit | undefined> {
+  async getCustomerCredit(userId: number, id: number): Promise<CustomerCredit | undefined> {
     const credit = this.customerCredits.get(id);
-    this.validateUserAccess(userId, credit, "Customer credit not found or user does not have access.");
+    this.validateUserAccess(userId, credit, "Customer credit not found or user does not have access");
     return credit;
   }
 
@@ -447,7 +393,7 @@ export class MemStorage implements IStorage {
       date: new Date(),
       status: "pending",
       paidDate: null,
-      amount: String(credit.amount), // Convert to string as per schema
+      amount: String(credit.amount),
       purpose: credit.purpose || null,
       notes: credit.notes || null,
     };
@@ -455,8 +401,8 @@ export class MemStorage implements IStorage {
     return newCredit;
   }
 
-  async markCustomerCreditPaid(id: number): Promise<CustomerCredit> {
-    const credit = await this.getCustomerCredit(id);
+  async markCustomerCreditPaid(userId: number, id: number): Promise<CustomerCredit> {
+    const credit = await this.getCustomerCredit(userId, id);
     if (!credit) throw new Error("Credit not found");
     const updated: CustomerCredit = {
       ...credit,
@@ -467,22 +413,21 @@ export class MemStorage implements IStorage {
     return updated;
   }
 
-  async deleteCustomerCredit(id: number): Promise<void> {
-    const credit = this.customerCredits.get(id);
-    if(!credit) throw new Error("Customer credit not found");
+  async deleteCustomerCredit(userId: number, id: number): Promise<void> {
+    const credit = await this.getCustomerCredit(userId, id);
+    if (!credit) throw new Error("Customer credit not found");
     this.customerCredits.delete(id);
   }
 
-  // Daily Sales implementations
   async getDailySales(userId: number): Promise<DailySales[]> {
     return Array.from(this.dailySales.values())
       .filter(sales => sales.userId === userId)
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }
 
-  async getDailySalesById(id: number): Promise<DailySales | undefined> {
+  async getDailySalesById(userId: number, id: number): Promise<DailySales | undefined> {
     const sales = this.dailySales.get(id);
-    this.validateUserAccess(userId, sales, "Daily sales record not found or user does not have access.");
+    this.validateUserAccess(userId, sales, "Daily sales record not found or user does not have access");
     return sales;
   }
 
@@ -503,8 +448,8 @@ export class MemStorage implements IStorage {
     return newSales;
   }
 
-  async updateDailySales(id: number, sales: InsertDailySales): Promise<DailySales> {
-    const existing = await this.getDailySalesById(id);
+  async updateDailySales(userId: number, id: number, sales: InsertDailySales): Promise<DailySales> {
+    const existing = await this.getDailySalesById(userId, id);
     if (!existing) throw new Error("Sales record not found");
     const totalAmount = Number(sales.cashAmount) + Number(sales.cardAmount) + Number(sales.upiAmount);
     const updated: DailySales = {
@@ -520,9 +465,9 @@ export class MemStorage implements IStorage {
     return updated;
   }
 
-  async deleteDailySales(id: number): Promise<void> {
-    const sales = this.dailySales.get(id);
-    if(!sales) throw new Error("Daily sales record not found");
+  async deleteDailySales(userId: number, id: number): Promise<void> {
+    const sales = await this.getDailySalesById(userId, id);
+    if (!sales) throw new Error("Daily sales record not found");
     this.dailySales.delete(id);
   }
 
@@ -530,9 +475,9 @@ export class MemStorage implements IStorage {
     return Array.from(this.expenses.values()).filter(expense => expense.userId === userId);
   }
 
-  async getExpense(id: number): Promise<Expense | undefined> {
+  async getExpense(userId: number, id: number): Promise<Expense | undefined> {
     const expense = this.expenses.get(id);
-    this.validateUserAccess(userId, expense, "Expense not found or user does not have access.");
+    this.validateUserAccess(userId, expense, "Expense not found or user does not have access");
     return expense;
   }
 
@@ -550,9 +495,9 @@ export class MemStorage implements IStorage {
     return newExpense;
   }
 
-  async deleteExpense(id: number): Promise<void> {
-    const expense = this.expenses.get(id);
-    if(!expense) throw new Error("Expense not found");
+  async deleteExpense(userId: number, id: number): Promise<void> {
+    const expense = await this.getExpense(userId, id);
+    if (!expense) throw new Error("Expense not found");
     this.expenses.delete(id);
   }
 
@@ -560,9 +505,9 @@ export class MemStorage implements IStorage {
     return Array.from(this.documents.values()).filter(doc => doc.userId === userId);
   }
 
-  async getDocument(id: number): Promise<Document | undefined> {
+  async getDocument(userId: number, id: number): Promise<Document | undefined> {
     const doc = this.documents.get(id);
-    this.validateUserAccess(userId, doc, "Document not found or user does not have access.");
+    this.validateUserAccess(userId, doc, "Document not found or user does not have access");
     return doc;
   }
 
@@ -580,8 +525,8 @@ export class MemStorage implements IStorage {
     return newDocument;
   }
 
-  async updateDocument(id: number, document: InsertDocument): Promise<Document> {
-    const existing = await this.getDocument(id);
+  async updateDocument(userId: number, id: number, document: InsertDocument): Promise<Document> {
+    const existing = await this.getDocument(userId, id);
     if (!existing) throw new Error("Document not found");
     const updated: Document = {
       ...existing,
@@ -593,12 +538,11 @@ export class MemStorage implements IStorage {
     return updated;
   }
 
-  async deleteDocument(id: number): Promise<void> {
-    const doc = this.documents.get(id);
-    if(!doc) throw new Error("Document not found");
+  async deleteDocument(userId: number, id: number): Promise<void> {
+    const doc = await this.getDocument(userId, id);
+    if (!doc) throw new Error("Document not found");
     this.documents.delete(id);
   }
-
 
   async clearUserData(userId: number): Promise<void> {
     if (!this.users.has(userId)) {
@@ -621,6 +565,33 @@ export class MemStorage implements IStorage {
       const loan = this.loans.get(repay.loanId);
       return loan && loan.userId !== userId;
     }));
+  }
+
+  async initializeStorage(): Promise<void> {
+    this.users = new Map();
+    this.creditCards = new Map();
+    this.debitCards = new Map();
+    this.bankAccounts = new Map();
+    this.loans = new Map();
+    this.repayments = new Map();
+    this.passwords = new Map();
+    this.customerCredits = new Map();
+    this.dailySales = new Map();
+    this.expenses = new Map();
+    this.documents = new Map();
+
+    this.currentUserId = 1;
+    this.currentIds = new Map([
+      ['card', 1],
+      ['account', 1],
+      ['loan', 1],
+      ['repayment', 1],
+      ['password', 1],
+      ['credit', 1],
+      ['sales', 1],
+      ['expense', 1],
+      ['document', 1]
+    ]);
   }
 }
 

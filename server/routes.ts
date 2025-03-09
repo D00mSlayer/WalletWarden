@@ -28,21 +28,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const parsed = insertCreditCardSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json(parsed.error);
 
-    const card = await storage.getCreditCard(parseInt(req.params.id));
-    if (!card || card.userId !== req.user.id) return res.sendStatus(404);
-
-    const updated = await storage.updateCreditCard(card.id, parsed.data);
-    res.json(updated);
+    try {
+      const updated = await storage.updateCreditCard(req.user.id, parseInt(req.params.id), parsed.data);
+      res.json(updated);
+    } catch (error) {
+      if (error.message.includes("not found")) {
+        return res.sendStatus(404);
+      }
+      throw error;
+    }
   });
 
   app.delete("/api/credit-cards/:id", async (req, res) => {
     if (!req.isAuthenticated()) return res.sendStatus(401);
-
-    const card = await storage.getCreditCard(parseInt(req.params.id));
-    if (!card || card.userId !== req.user.id) return res.sendStatus(404);
-
-    await storage.deleteCreditCard(card.id);
-    res.sendStatus(204);
+    try {
+      await storage.deleteCreditCard(req.user.id, parseInt(req.params.id));
+      res.sendStatus(204);
+    } catch (error) {
+      if (error.message.includes("not found")) {
+        return res.sendStatus(404);
+      }
+      throw error;
+    }
   });
 
   // Debit Card Routes
@@ -66,21 +73,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const parsed = insertDebitCardSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json(parsed.error);
 
-    const card = await storage.getDebitCard(parseInt(req.params.id));
-    if (!card || card.userId !== req.user.id) return res.sendStatus(404);
-
-    const updated = await storage.updateDebitCard(card.id, parsed.data);
-    res.json(updated);
+    try {
+      const updated = await storage.updateDebitCard(req.user.id, parseInt(req.params.id), parsed.data);
+      res.json(updated);
+    } catch (error) {
+      if (error.message.includes("not found")) {
+        return res.sendStatus(404);
+      }
+      throw error;
+    }
   });
 
   app.delete("/api/debit-cards/:id", async (req, res) => {
     if (!req.isAuthenticated()) return res.sendStatus(401);
-
-    const card = await storage.getDebitCard(parseInt(req.params.id));
-    if (!card || card.userId !== req.user.id) return res.sendStatus(404);
-
-    await storage.deleteDebitCard(card.id);
-    res.sendStatus(204);
+    try {
+      await storage.deleteDebitCard(req.user.id, parseInt(req.params.id));
+      res.sendStatus(204);
+    } catch (error) {
+      if (error.message.includes("not found")) {
+        return res.sendStatus(404);
+      }
+      throw error;
+    }
   });
 
   // Bank Account Routes
@@ -104,21 +118,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const parsed = insertBankAccountSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json(parsed.error);
 
-    const account = await storage.getBankAccount(parseInt(req.params.id));
-    if (!account || account.userId !== req.user.id) return res.sendStatus(404);
-
-    const updated = await storage.updateBankAccount(account.id, parsed.data);
-    res.json(updated);
+    try {
+      const updated = await storage.updateBankAccount(req.user.id, parseInt(req.params.id), parsed.data);
+      res.json(updated);
+    } catch (error) {
+      if (error.message.includes("not found")) {
+        return res.sendStatus(404);
+      }
+      throw error;
+    }
   });
 
   app.delete("/api/bank-accounts/:id", async (req, res) => {
     if (!req.isAuthenticated()) return res.sendStatus(401);
-
-    const account = await storage.getBankAccount(parseInt(req.params.id));
-    if (!account || account.userId !== req.user.id) return res.sendStatus(404);
-
-    await storage.deleteBankAccount(account.id);
-    res.sendStatus(204);
+    try {
+      await storage.deleteBankAccount(req.user.id, parseInt(req.params.id));
+      res.sendStatus(204);
+    } catch (error) {
+      if (error.message.includes("not found")) {
+        return res.sendStatus(404);
+      }
+      throw error;
+    }
   });
 
   // Loan Routes
@@ -142,42 +163,58 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const parsed = insertLoanSchema.partial().safeParse(req.body);
     if (!parsed.success) return res.status(400).json(parsed.error);
 
-    const loan = await storage.getLoan(parseInt(req.params.id));
-    if (!loan || loan.userId !== req.user.id) return res.sendStatus(404);
-
-    const updated = await storage.updateLoan(loan.id, parsed.data);
-    res.json(updated);
+    try {
+      const updated = await storage.updateLoan(req.user.id, parseInt(req.params.id), parsed.data);
+      res.json(updated);
+    } catch (error) {
+      if (error.message.includes("not found")) {
+        return res.sendStatus(404);
+      }
+      throw error;
+    }
   });
 
   app.post("/api/loans/:id/complete", async (req, res) => {
     if (!req.isAuthenticated()) return res.sendStatus(401);
-
-    const loan = await storage.getLoan(parseInt(req.params.id));
-    if (!loan || loan.userId !== req.user.id) return res.sendStatus(404);
-
-    const updated = await storage.completeLoan(loan.id);
-    res.json(updated);
+    try {
+      const updated = await storage.completeLoan(req.user.id, parseInt(req.params.id));
+      res.json(updated);
+    } catch (error) {
+      if (error.message.includes("not found")) {
+        return res.sendStatus(404);
+      }
+      throw error;
+    }
   });
 
   app.delete("/api/loans/:id", async (req, res) => {
     if (!req.isAuthenticated()) return res.sendStatus(401);
-
-    const loan = await storage.getLoan(parseInt(req.params.id));
-    if (!loan || loan.userId !== req.user.id) return res.sendStatus(404);
-
-    await storage.deleteLoan(loan.id);
-    res.sendStatus(204);
+    try {
+      await storage.deleteLoan(req.user.id, parseInt(req.params.id));
+      res.sendStatus(204);
+    } catch (error) {
+      if (error.message.includes("not found")) {
+        return res.sendStatus(404);
+      }
+      throw error;
+    }
   });
 
   // Repayment Routes
   app.get("/api/loans/:id/repayments", async (req, res) => {
     if (!req.isAuthenticated()) return res.sendStatus(401);
+    try {
+      const loan = await storage.getLoan(req.user.id, parseInt(req.params.id));
+      if (!loan) return res.sendStatus(404);
 
-    const loan = await storage.getLoan(parseInt(req.params.id));
-    if (!loan || loan.userId !== req.user.id) return res.sendStatus(404);
-
-    const repayments = await storage.getRepayments(loan.id);
-    res.json(repayments);
+      const repayments = await storage.getRepayments(loan.id);
+      res.json(repayments);
+    } catch (error) {
+      if (error.message.includes("not found")) {
+        return res.sendStatus(404);
+      }
+      throw error;
+    }
   });
 
   app.post("/api/loans/:id/repayments", async (req, res) => {
@@ -185,21 +222,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const parsed = insertRepaymentSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json(parsed.error);
 
-    const loan = await storage.getLoan(parseInt(req.params.id));
-    if (!loan || loan.userId !== req.user.id) return res.sendStatus(404);
+    try {
+      const loan = await storage.getLoan(req.user.id, parseInt(req.params.id));
+      if (!loan) return res.sendStatus(404);
 
-    const repayment = await storage.createRepayment(loan.id, parsed.data);
-    res.status(201).json(repayment);
+      const repayment = await storage.createRepayment(loan.id, parsed.data);
+      res.status(201).json(repayment);
+    } catch (error) {
+      if (error.message.includes("not found")) {
+        return res.sendStatus(404);
+      }
+      throw error;
+    }
   });
 
   app.delete("/api/loans/:id/repayments/:repaymentId", async (req, res) => {
     if (!req.isAuthenticated()) return res.sendStatus(401);
+    try {
+      const loan = await storage.getLoan(req.user.id, parseInt(req.params.id));
+      if (!loan) return res.sendStatus(404);
 
-    const loan = await storage.getLoan(parseInt(req.params.id));
-    if (!loan || loan.userId !== req.user.id) return res.sendStatus(404);
-
-    await storage.deleteRepayment(parseInt(req.params.repaymentId));
-    res.sendStatus(204);
+      await storage.deleteRepayment(parseInt(req.params.repaymentId));
+      res.sendStatus(204);
+    } catch (error) {
+      if (error.message.includes("not found")) {
+        return res.sendStatus(404);
+      }
+      throw error;
+    }
   });
 
   // Password Routes
@@ -223,21 +273,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const parsed = insertPasswordSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json(parsed.error);
 
-    const password = await storage.getPassword(parseInt(req.params.id));
-    if (!password || password.userId !== req.user.id) return res.sendStatus(404);
-
-    const updated = await storage.updatePassword(password.id, parsed.data);
-    res.json(updated);
+    try {
+      const updated = await storage.updatePassword(req.user.id, parseInt(req.params.id), parsed.data);
+      res.json(updated);
+    } catch (error) {
+      if (error.message.includes("not found")) {
+        return res.sendStatus(404);
+      }
+      throw error;
+    }
   });
 
   app.delete("/api/passwords/:id", async (req, res) => {
     if (!req.isAuthenticated()) return res.sendStatus(401);
-
-    const password = await storage.getPassword(parseInt(req.params.id));
-    if (!password || password.userId !== req.user.id) return res.sendStatus(404);
-
-    await storage.deletePassword(password.id);
-    res.sendStatus(204);
+    try {
+      await storage.deletePassword(req.user.id, parseInt(req.params.id));
+      res.sendStatus(204);
+    } catch (error) {
+      if (error.message.includes("not found")) {
+        return res.sendStatus(404);
+      }
+      throw error;
+    }
   });
 
   // Customer Credit Routes
@@ -258,22 +315,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/business/credits/:id/paid", async (req, res) => {
     if (!req.isAuthenticated()) return res.sendStatus(401);
-
-    const credit = await storage.getCustomerCredit(parseInt(req.params.id));
-    if (!credit || credit.userId !== req.user.id) return res.sendStatus(404);
-
-    const updated = await storage.markCustomerCreditPaid(credit.id);
-    res.json(updated);
+    try {
+      const updated = await storage.markCustomerCreditPaid(req.user.id, parseInt(req.params.id));
+      res.json(updated);
+    } catch (error) {
+      if (error.message.includes("not found")) {
+        return res.sendStatus(404);
+      }
+      throw error;
+    }
   });
 
   app.delete("/api/business/credits/:id", async (req, res) => {
     if (!req.isAuthenticated()) return res.sendStatus(401);
-
-    const credit = await storage.getCustomerCredit(parseInt(req.params.id));
-    if (!credit || credit.userId !== req.user.id) return res.sendStatus(404);
-
-    await storage.deleteCustomerCredit(credit.id);
-    res.sendStatus(204);
+    try {
+      await storage.deleteCustomerCredit(req.user.id, parseInt(req.params.id));
+      res.sendStatus(204);
+    } catch (error) {
+      if (error.message.includes("not found")) {
+        return res.sendStatus(404);
+      }
+      throw error;
+    }
   });
 
   // Expense Routes
@@ -294,12 +357,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.delete("/api/business/expenses/:id", async (req, res) => {
     if (!req.isAuthenticated()) return res.sendStatus(401);
-
-    const expense = await storage.getExpense(parseInt(req.params.id));
-    if (!expense || expense.userId !== req.user.id) return res.sendStatus(404);
-
-    await storage.deleteExpense(expense.id);
-    res.sendStatus(204);
+    try {
+      await storage.deleteExpense(req.user.id, parseInt(req.params.id));
+      res.sendStatus(204);
+    } catch (error) {
+      if (error.message.includes("not found")) {
+        return res.sendStatus(404);
+      }
+      throw error;
+    }
   });
 
   // Add this route after the existing expense routes
@@ -479,13 +545,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
 
     try {
-      const sales = await storage.getDailySalesById(parseInt(req.params.id));
-      if (!sales || sales.userId !== req.user.id) return res.sendStatus(404);
-
-      const updated = await storage.updateDailySales(sales.id, parsed.data);
+      const updated = await storage.updateDailySales(req.user.id, parseInt(req.params.id), parsed.data);
       console.log("[API] Updated daily sales record:", updated);
       res.json(updated);
     } catch (error) {
+      if (error.message.includes("not found")) {
+        return res.sendStatus(404);
+      }
       console.error("[API] Error updating sales record:", error);
       res.status(500).json({ message: "Failed to update sales record" });
     }
@@ -496,13 +562,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     console.log("[API] Deleting daily sales record:", req.params.id);
 
     try {
-      const sales = await storage.getDailySalesById(parseInt(req.params.id));
-      if (!sales || sales.userId !== req.user.id) return res.sendStatus(404);
-
-      await storage.deleteDailySales(sales.id);
+      await storage.deleteDailySales(req.user.id, parseInt(req.params.id));
       console.log("[API] Deleted daily sales record:", req.params.id);
       res.sendStatus(204);
     } catch (error) {
+      if (error.message.includes("not found")) {
+        return res.sendStatus(404);
+      }
       console.error("[API] Error deleting sales record:", error);
       res.status(500).json({ message: "Failed to delete sales record" });
     }
@@ -604,23 +670,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const parsed = insertDocumentSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json(parsed.error);
 
-    const document = await storage.getDocument(parseInt(req.params.id));
-    if (!document || document.userId !== req.user.id) return res.sendStatus(404);
-
-    const updated = await storage.updateDocument(document.id, parsed.data);
-    res.json(updated);
+    try {
+      const updated = await storage.updateDocument(req.user.id, parseInt(req.params.id), parsed.data);
+      res.json(updated);
+    } catch (error) {
+      if (error.message.includes("not found")) {
+        return res.sendStatus(404);
+      }
+      throw error;
+    }
   });
 
   app.delete("/api/documents/:id", async (req, res) => {
     if (!req.isAuthenticated()) return res.sendStatus(401);
-
-    const document = await storage.getDocument(parseInt(req.params.id));
-    if (!document || document.userId !== req.user.id) return res.sendStatus(404);
-
-    await storage.deleteDocument(document.id);
-    res.sendStatus(204);
+    try {
+      await storage.deleteDocument(req.user.id, parseInt(req.params.id));
+      res.sendStatus(204);
+    } catch (error) {
+      if (error.message.includes("not found")) {
+        return res.sendStatus(404);
+      }
+      throw error;
+    }
   });
 
+  // Google Drive Routes
   app.get("/api/google/auth-url", async (req, res) => {
     if (!req.isAuthenticated()) return res.sendStatus(401);
     try {
@@ -631,7 +705,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const baseUrl = `${req.protocol}://${req.get('host')}`;
       const { url } = await getAuthUrl(baseUrl);
-      res.json({ url }); // Send just the URL string
+      res.json({ url });
     } catch (error) {
       console.error('Failed to get auth URL:', error);
       res.status(500).json({ message: "Failed to get auth URL" });
@@ -766,7 +840,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
   });
 
-  // Add this near your other Google Drive routes:
   app.post("/api/restore", async (req, res) => {
     if (!req.isAuthenticated()) return res.sendStatus(401);
     if (!req.session.googleTokens) {
