@@ -1,4 +1,4 @@
-import { createContext, ReactNode, useContext } from "react";
+import { createContext, ReactNode, useContext, useEffect } from "react";
 import {
   useQuery,
   useMutation,
@@ -7,6 +7,7 @@ import {
 import { insertUserSchema, User as SelectUser, InsertUser } from "@shared/schema";
 import { getQueryFn, apiRequest, queryClient } from "../lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { checkBiometricAvailability, authenticateWithBiometric, setBiometricEnabled } from "@/lib/local-auth";
 
 type AuthContextType = {
   user: SelectUser | null;
@@ -15,11 +16,14 @@ type AuthContextType = {
   loginMutation: UseMutationResult<SelectUser, Error, LoginData>;
   logoutMutation: UseMutationResult<void, Error, void>;
   registerMutation: UseMutationResult<SelectUser, Error, InsertUser>;
+  biometricSupported: boolean;
+  biometricType: string | null;
 };
 
 type LoginData = Pick<InsertUser, "username" | "password">;
 
 export const AuthContext = createContext<AuthContextType | null>(null);
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const { toast } = useToast();
   const {
@@ -31,13 +35,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     queryFn: getQueryFn({ on401: "returnNull" }),
   });
 
+  // Check biometric availability
+  const {
+    data: biometricStatus = { isAvailable: false, biometryType: null },
+  } = useQuery({
+    queryKey: ["biometric-availability"],
+    queryFn: async () => {
+      try {
+        return await checkBiometricAvailability();
+      } catch (error) {
+        console.error("Error checking biometric availability:", error);
+        return { isAvailable: false, biometryType: null };
+      }
+    }
+  });
+
   const loginMutation = useMutation({
     mutationFn: async (credentials: LoginData) => {
+      if (user?.biometricEnabled) {
+        const verified = await authenticateWithBiometric();
+        if (!verified) {
+          throw new Error("Biometric authentication failed");
+        }
+      }
       const res = await apiRequest("POST", "/api/login", credentials);
       return await res.json();
     },
-    onSuccess: (user: SelectUser) => {
+    onSuccess: async (user: SelectUser) => {
       queryClient.setQueryData(["/api/user"], user);
+      if (user.biometricEnabled) {
+        await setBiometricEnabled(true);
+      }
     },
     onError: (error: Error) => {
       toast({
@@ -69,8 +97,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     mutationFn: async () => {
       await apiRequest("POST", "/api/logout");
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       queryClient.setQueryData(["/api/user"], null);
+      await setBiometricEnabled(false);
     },
     onError: (error: Error) => {
       toast({
@@ -90,6 +119,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         loginMutation,
         logoutMutation,
         registerMutation,
+        biometricSupported: biometricStatus.isAvailable,
+        biometricType: biometricStatus.biometryType,
       }}
     >
       {children}

@@ -31,10 +31,22 @@ export const documentTypeToTags: Record<string, string[]> = {
   "Business Registration Certificate": ["business"],
 };
 
+// Update users table to include driveBackupId and biometricEnabled
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   username: text("username").notNull().unique(),
   password: text("password").notNull(),
+  driveBackupId: text("drive_backup_id"), // Unique folder ID for Google Drive backups
+  biometricEnabled: boolean("biometric_enabled").notNull().default(false),
+  biometricToken: text("biometric_token"), // Token for biometric verification
+});
+
+// Update user schema
+export const insertUserSchema = createInsertSchema(users).pick({
+  username: true,
+  password: true,
+}).extend({
+  useBiometric: z.boolean().optional(),
 });
 
 export const creditCards = pgTable("credit_cards", {
@@ -104,11 +116,6 @@ export const bankIssuers = [
 export const accountTypes = ["Savings", "Current"] as const;
 
 const currentYear = new Date().getFullYear() % 100; // Get last 2 digits of current year
-
-export const insertUserSchema = createInsertSchema(users).pick({
-  username: true,
-  password: true,
-});
 
 // Business Schema
 export const customerCredits = pgTable("customer_credits", {

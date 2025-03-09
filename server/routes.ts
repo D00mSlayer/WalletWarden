@@ -738,7 +738,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
     try {
       const baseUrl = `${req.protocol}://${req.get('host')}`;
-      const file = await backupToGoogleDrive(req.user.id, baseUrl, req.session.googleTokens);
+      const file = await backupToGoogleDrive(req.user.id, req.user.username, baseUrl, req.session.googleTokens);
       res.json(file);
     } catch (error) {
       console.error('Failed to backup:', error);
@@ -769,7 +769,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     try {
       const baseUrl = `${req.protocol}://${req.get('host')}`;
-      const backupData = await getLatestBackup(baseUrl, req.session.googleTokens);
+      const backupData = await getLatestBackup(req.user.id, req.user.username, baseUrl, req.session.googleTokens);
 
       // Restore all data
       if (backupData.creditCards) {

@@ -69,37 +69,64 @@ export async function handleCallback(code: string, baseUrl: string, expectedStat
   }
 }
 
-async function findOrCreateBackupFolder(drive: any) {
-  const folderName = 'Financial App Backups';
+async function findOrCreateBackupFolder(drive: any, userId: number, username: string) {
+  const appFolderName = 'Financial App Backups';
+  const userFolderName = `User_${userId}_${username}`;
 
-  // Check if folder already exists
-  const response = await drive.files.list({
-    q: `name='${folderName}' and mimeType='application/vnd.google-apps.folder' and trashed=false`,
+  // Check if main app folder exists
+  const appFolderResponse = await drive.files.list({
+    q: `name='${appFolderName}' and mimeType='application/vnd.google-apps.folder' and trashed=false`,
     fields: 'files(id, name)',
     spaces: 'drive'
   });
 
-  if (response.data.files && response.data.files.length > 0) {
-    console.log('[Google Drive] Found existing backup folder:', response.data.files[0].id);
-    return response.data.files[0].id;
+  let appFolderId;
+  if (appFolderResponse.data.files && appFolderResponse.data.files.length > 0) {
+    appFolderId = appFolderResponse.data.files[0].id;
+    console.log('[Google Drive] Found existing app folder:', appFolderId);
+  } else {
+    // Create main app folder
+    const appFolderMetadata = {
+      name: appFolderName,
+      mimeType: 'application/vnd.google-apps.folder'
+    };
+    const appFolder = await drive.files.create({
+      requestBody: appFolderMetadata,
+      fields: 'id'
+    });
+    appFolderId = appFolder.data.id;
+    console.log('[Google Drive] Created new app folder:', appFolderId);
   }
 
-  // Create new folder
-  const fileMetadata = {
-    name: folderName,
-    mimeType: 'application/vnd.google-apps.folder'
+  // Check if user folder exists
+  const userFolderResponse = await drive.files.list({
+    q: `name='${userFolderName}' and '${appFolderId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,
+    fields: 'files(id, name)',
+    spaces: 'drive'
+  });
+
+  if (userFolderResponse.data.files && userFolderResponse.data.files.length > 0) {
+    console.log('[Google Drive] Found existing user folder:', userFolderResponse.data.files[0].id);
+    return userFolderResponse.data.files[0].id;
+  }
+
+  // Create new user folder
+  const userFolderMetadata = {
+    name: userFolderName,
+    mimeType: 'application/vnd.google-apps.folder',
+    parents: [appFolderId]
   };
 
-  const folder = await drive.files.create({
-    requestBody: fileMetadata,
+  const userFolder = await drive.files.create({
+    requestBody: userFolderMetadata,
     fields: 'id'
   });
 
-  console.log('[Google Drive] Created new backup folder:', folder.data.id);
-  return folder.data.id;
+  console.log('[Google Drive] Created new user folder:', userFolder.data.id);
+  return userFolder.data.id;
 }
 
-export async function backupToGoogleDrive(userId: number, baseUrl: string, tokens: any) {
+export async function backupToGoogleDrive(userId: number, username: string, baseUrl: string, tokens: any) {
   try {
     console.log('[Google Drive] Starting backup for user:', userId);
 
@@ -108,8 +135,8 @@ export async function backupToGoogleDrive(userId: number, baseUrl: string, token
     client.setCredentials(tokens);
     const drive = google.drive({ version: 'v3', auth: client });
 
-    // Get or create backup folder
-    const folderId = await findOrCreateBackupFolder(drive);
+    // Get or create user-specific backup folder
+    const folderId = await findOrCreateBackupFolder(drive, userId, username);
 
     // Fetch all data for the user
     const data = {
@@ -175,7 +202,7 @@ export async function backupToGoogleDrive(userId: number, baseUrl: string, token
   }
 }
 
-export async function getLatestBackup(baseUrl: string, tokens: any) {
+export async function getLatestBackup(userId: number, username: string, baseUrl: string, tokens: any) {
   try {
     console.log('[Google Drive] Fetching latest backup');
 
@@ -184,8 +211,8 @@ export async function getLatestBackup(baseUrl: string, tokens: any) {
     client.setCredentials(tokens);
     const drive = google.drive({ version: 'v3', auth: client });
 
-    // Find backup folder
-    const folderId = await findOrCreateBackupFolder(drive);
+    // Find user's backup folder
+    const folderId = await findOrCreateBackupFolder(drive, userId, username);
 
     // Get latest backup file
     const response = await drive.files.list({
@@ -205,7 +232,7 @@ export async function getLatestBackup(baseUrl: string, tokens: any) {
 
     // Download file content
     const fileResponse = await drive.files.get({
-      fileId: file.id!,
+      fileId: file.id,
       alt: 'media'
     });
 
