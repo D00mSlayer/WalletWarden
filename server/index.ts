@@ -1,12 +1,36 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+import session from "express-session";
+import { storage } from "./storage";
+import { setupAuth } from "./auth";
 
 const app = express();
-// Increase the size limit to handle file uploads (10MB)
+
+// Increase JSON payload limit for file uploads
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: false, limit: '10mb' }));
 
+// Configure session first
+const sessionConfig = {
+  secret: process.env.SESSION_SECRET || 'dev-secret-key',
+  resave: false,
+  saveUninitialized: false,
+  store: storage.sessionStore,
+  name: 'financial.sid',
+  cookie: {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    maxAge: 24 * 60 * 60 * 1000, // 24 hours
+  },
+};
+
+app.use(session(sessionConfig));
+
+// Initialize authentication after session
+setupAuth(app);
+
+// Request logging middleware
 app.use((req, res, next) => {
   const start = Date.now();
   const path = req.path;
@@ -40,6 +64,7 @@ app.use((req, res, next) => {
 (async () => {
   const server = await registerRoutes(app);
 
+  // Error handling middleware
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
     const message = err.message || "Internal Server Error";
@@ -47,6 +72,7 @@ app.use((req, res, next) => {
     res.status(status).json({ message });
   });
 
+  // Setup Vite development or static serving
   if (app.get("env") === "development") {
     await setupVite(app, server);
   } else {
