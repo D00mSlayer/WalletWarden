@@ -1,16 +1,3 @@
-declare module 'express-session' {
-  interface SessionData {
-    googleTokens?: {
-      access_token?: string;
-      refresh_token?: string;
-      scope?: string;
-      token_type?: string;
-      expiry_date?: number;
-    };
-    backupFolderId?: string;
-  }
-}
-
 import passport from "passport";
 import { Strategy as LocalStrategy } from "passport-local";
 import { Express } from "express";
@@ -23,6 +10,19 @@ import { User as SelectUser } from "@shared/schema";
 declare global {
   namespace Express {
     interface User extends SelectUser {}
+  }
+}
+
+declare module 'express-session' {
+  interface SessionData {
+    googleTokens?: {
+      access_token?: string;
+      refresh_token?: string;
+      scope?: string;
+      token_type?: string;
+      expiry_date?: number;
+    };
+    backupFolderId?: string;
   }
 }
 
@@ -47,6 +47,13 @@ export function setupAuth(app: Express) {
     resave: false,
     saveUninitialized: false,
     store: storage.sessionStore,
+    name: 'financial.sid', // Custom session ID name
+    cookie: {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      maxAge: 24 * 60 * 60 * 1000, // 24 hours
+    },
+    rolling: true // Extend session with each request
   };
 
   app.set("trust proxy", 1);
@@ -56,45 +63,96 @@ export function setupAuth(app: Express) {
 
   passport.use(
     new LocalStrategy(async (username, password, done) => {
-      const user = await storage.getUserByUsername(username);
-      if (!user || !(await comparePasswords(password, user.password))) {
-        return done(null, false);
-      } else {
+      try {
+        const user = await storage.getUserByUsername(username);
+        if (!user || !(await comparePasswords(password, user.password))) {
+          return done(null, false);
+        }
         return done(null, user);
+      } catch (error) {
+        return done(error);
       }
     }),
   );
 
   passport.serializeUser((user, done) => done(null, user.id));
+
   passport.deserializeUser(async (id: number, done) => {
-    const user = await storage.getUser(id);
-    done(null, user);
+    try {
+      const user = await storage.getUser(id);
+      if (!user) {
+        return done(null, false);
+      }
+      done(null, user);
+    } catch (error) {
+      done(error);
+    }
   });
 
   app.post("/api/register", async (req, res, next) => {
-    const existingUser = await storage.getUserByUsername(req.body.username);
-    if (existingUser) {
-      return res.status(400).send("Username already exists");
+    try {
+      const existingUser = await storage.getUserByUsername(req.body.username);
+      if (existingUser) {
+        return res.status(400).send("Username already exists");
+      }
+
+      const user = await storage.createUser({
+        ...req.body,
+        password: await hashPassword(req.body.password),
+      });
+
+      // Clear any existing session
+      await new Promise<void>((resolve, reject) => {
+        req.session.destroy((err) => {
+          if (err) reject(err);
+          else resolve();
+        });
+      });
+
+      // Create new session with the new user
+      req.login(user, (err) => {
+        if (err) return next(err);
+        res.status(201).json(user);
+      });
+    } catch (error) {
+      next(error);
     }
-
-    const user = await storage.createUser({
-      ...req.body,
-      password: await hashPassword(req.body.password),
-    });
-
-    req.login(user, (err) => {
-      if (err) return next(err);
-      res.status(201).json(user);
-    });
   });
 
-  app.post("/api/login", passport.authenticate("local"), (req, res) => {
-    res.status(200).json(req.user);
+  app.post("/api/login", async (req, res, next) => {
+    try {
+      // Clear any existing session before login
+      await new Promise<void>((resolve, reject) => {
+        req.session.destroy((err) => {
+          if (err) reject(err);
+          else resolve();
+        });
+      });
+
+      passport.authenticate("local", (err, user) => {
+        if (err) return next(err);
+        if (!user) return res.status(401).json({ message: "Invalid credentials" });
+
+        req.login(user, (err) => {
+          if (err) return next(err);
+          res.status(200).json(user);
+        });
+      })(req, res, next);
+    } catch (error) {
+      next(error);
+    }
   });
 
   app.post("/api/logout", (req, res, next) => {
-    req.logout((err) => {
+    // Clear user data from memory storage for extra security
+    if (req.user) {
+      storage.clearUserData(req.user.id);
+    }
+
+    // Destroy session
+    req.session.destroy((err) => {
       if (err) return next(err);
+      res.clearCookie('financial.sid'); // Clear session cookie
       res.sendStatus(200);
     });
   });

@@ -353,37 +353,37 @@ function getCardGradient(network: string) {
 function DebitCardItem({ card, onUpdate, onDelete }: any) {
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [showFullNumber, setShowFullNumber] = useState(false);
+  const [showCVV, setShowCVV] = useState(false);
   const { toast } = useToast();
   const gradient = getCardGradient(card.cardNetwork);
 
-  // Auto-hide number after 5 seconds
+  // Auto-hide number and CVV after 5 seconds
   useEffect(() => {
-    if (showFullNumber) {
+    if (showFullNumber || showCVV) {
       const timer = setTimeout(() => {
         setShowFullNumber(false);
+        setShowCVV(false);
       }, 5000);
       return () => clearTimeout(timer);
     }
-  }, [showFullNumber]);
+  }, [showFullNumber, showCVV]);
 
   const handleUpdate = async (data: any) => {
     await onUpdate(data);
     setIsEditOpen(false);
   };
 
-  const copyCardNumber = async () => {
-    if (!showFullNumber) return; // Only allow copy when number is visible
-
+  const copyToClipboard = async (text: string, type: string) => {
     try {
-      await navigator.clipboard.writeText(card.cardNumber);
+      await navigator.clipboard.writeText(text);
       toast({
-        title: "Card number copied",
-        description: "The card number has been copied to your clipboard",
+        title: `${type} copied`,
+        description: `The ${type.toLowerCase()} has been copied to your clipboard`,
       });
     } catch (err) {
       toast({
         title: "Failed to copy",
-        description: "Could not copy the card number to clipboard",
+        description: `Could not copy the ${type.toLowerCase()} to clipboard`,
         variant: "destructive",
       });
     }
@@ -445,7 +445,7 @@ function DebitCardItem({ card, onUpdate, onDelete }: any) {
                 onClick={() => setShowFullNumber(!showFullNumber)}
                 onContextMenu={(e) => {
                   e.preventDefault();
-                  copyCardNumber();
+                  if (showFullNumber) copyToClipboard(card.cardNumber, "Card number");
                 }}
                 title={showFullNumber ? "Press and hold to copy, click to hide" : "Click to view full number"}
               >
@@ -453,9 +453,25 @@ function DebitCardItem({ card, onUpdate, onDelete }: any) {
               </button>
               {getCardIcon(card.cardNetwork)}
             </div>
-            <div className="text-sm">
-              <div className="opacity-75 text-xs mb-1">Expires</div>
-              {card.expiryDate}
+            <div className="flex items-center gap-4">
+              <div className="text-sm">
+                <div className="opacity-75 text-xs mb-1">CVV</div>
+                <button
+                  className="font-mono focus:outline-none transition-opacity hover:opacity-80"
+                  onClick={() => setShowCVV(!showCVV)}
+                  onContextMenu={(e) => {
+                    e.preventDefault();
+                    if (showCVV) copyToClipboard(card.cvv, "CVV");
+                  }}
+                  title={showCVV ? "Press and hold to copy, click to hide" : "Click to view CVV"}
+                >
+                  {showCVV ? card.cvv : "•••"}
+                </button>
+              </div>
+              <div className="text-sm">
+                <div className="opacity-75 text-xs mb-1">Expires</div>
+                {card.expiryDate}
+              </div>
             </div>
           </div>
         </div>
