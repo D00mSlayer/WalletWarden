@@ -47,13 +47,8 @@ export async function getAuthUrl(baseUrl: string) {
   }
 }
 
-export async function handleCallback(code: string, baseUrl: string, expectedState?: string, providedState?: string) {
+export async function handleCallback(code: string, baseUrl: string) {
   console.log('[Google Drive] Handling OAuth callback');
-
-  // Verify state parameter if provided
-  if (expectedState && providedState && expectedState !== providedState) {
-    throw new Error('Invalid state parameter');
-  }
 
   // Ensure OAuth client is configured with current URL
   const client = configureOAuth2Client(baseUrl);
@@ -130,15 +125,12 @@ export async function backupToGoogleDrive(userId: number, username: string, base
   try {
     console.log('[Google Drive] Starting backup for user:', userId);
 
-    // Ensure OAuth client is configured with current URL
     const client = configureOAuth2Client(baseUrl);
     client.setCredentials(tokens);
     const drive = google.drive({ version: 'v3', auth: client });
 
-    // Get or create user-specific backup folder
     const folderId = await findOrCreateBackupFolder(drive, userId, username);
 
-    // Fetch all data for the user
     const data = {
       creditCards: await storage.getCreditCards(userId),
       debitCards: await storage.getDebitCards(userId),
@@ -152,13 +144,11 @@ export async function backupToGoogleDrive(userId: number, username: string, base
       loanRepayments: {} as { [key: number]: any[] }
     };
 
-    // Add loan repayments
     const loans = await storage.getLoans(userId);
     for (const loan of loans) {
       data.loanRepayments[loan.id] = await storage.getRepayments(loan.id);
     }
 
-    // Check if there's an existing backup file and delete it
     const existingFiles = await drive.files.list({
       q: `'${folderId}' in parents and mimeType='application/json' and trashed=false`,
       fields: 'files(id, name)',
@@ -172,7 +162,6 @@ export async function backupToGoogleDrive(userId: number, username: string, base
       }
     }
 
-    // Create backup file with timestamp
     const timestamp = new Date().toISOString();
     const fileMetadata = {
       name: `backup-${timestamp}.json`,
@@ -187,7 +176,6 @@ export async function backupToGoogleDrive(userId: number, username: string, base
 
     console.log('[Google Drive] Uploading backup file:', fileMetadata.name);
 
-    // Upload to Google Drive
     const response = await drive.files.create({
       requestBody: fileMetadata,
       media: media,
@@ -206,15 +194,12 @@ export async function getLatestBackup(userId: number, username: string, baseUrl:
   try {
     console.log('[Google Drive] Fetching latest backup');
 
-    // Configure client
     const client = configureOAuth2Client(baseUrl);
     client.setCredentials(tokens);
     const drive = google.drive({ version: 'v3', auth: client });
 
-    // Find user's backup folder
     const folderId = await findOrCreateBackupFolder(drive, userId, username);
 
-    // Get latest backup file
     const response = await drive.files.list({
       q: `'${folderId}' in parents and mimeType='application/json' and trashed=false`,
       orderBy: 'createdTime desc',
@@ -230,13 +215,12 @@ export async function getLatestBackup(userId: number, username: string, baseUrl:
     const file = response.data.files[0];
     console.log('[Google Drive] Found latest backup:', file);
 
-    // Download file content
     const fileResponse = await drive.files.get({
       fileId: file.id,
       alt: 'media'
     });
 
-    return fileResponse.data;
+    return JSON.parse(fileResponse.data); //Parse the JSON response
   } catch (error) {
     console.error('[Google Drive] Failed to fetch latest backup:', error);
     throw error;

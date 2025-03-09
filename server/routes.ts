@@ -442,7 +442,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
 
-
   // Daily Sales Routes
   app.get("/api/business/sales", async (req, res) => {
     if (!req.isAuthenticated()) return res.sendStatus(401);
@@ -770,6 +769,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const baseUrl = `${req.protocol}://${req.get('host')}`;
       const backupData = await getLatestBackup(req.user.id, req.user.username, baseUrl, req.session.googleTokens);
+
+      // Clear existing user data before restore
+      await storage.clearUserData(req.user.id);
 
       // Restore all data
       if (backupData.creditCards) {
