@@ -625,6 +625,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/google/auth-url", async (req, res) => {
     if (!req.isAuthenticated()) return res.sendStatus(401);
     try {
+      // If we have valid tokens, no need for new auth
+      if (req.session.googleTokens?.refresh_token) {
+        return res.json({ url: null });
+      }
+
       const baseUrl = `${req.protocol}://${req.get('host')}`;
       const { url } = await getAuthUrl(baseUrl);
       res.json({ url }); // Send just the URL string
@@ -814,7 +819,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       if (backupData.dailySales) {
-        for (const sale of backupData.dailySales) {          await storage.createDailySales(req.user.id, sale);
+        for (const sale of backupData.dailySales) {
+          await storage.createDailySales(req.user.id, sale);
         }
       }
 

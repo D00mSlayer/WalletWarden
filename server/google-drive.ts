@@ -35,7 +35,8 @@ export async function getAuthUrl(baseUrl: string) {
       access_type: 'offline',
       scope: scopes,
       state: state,
-      prompt: 'consent' // Always show consent screen to get refresh token
+      // Only show consent screen if we don't have a refresh token
+      prompt: 'consent'
     });
 
     console.log('[Google Drive] Generated auth URL:', url);
@@ -128,6 +129,20 @@ export async function backupToGoogleDrive(userId: number, baseUrl: string, token
     const loans = await storage.getLoans(userId);
     for (const loan of loans) {
       data.loanRepayments[loan.id] = await storage.getRepayments(loan.id);
+    }
+
+    // Check if there's an existing backup file and delete it
+    const existingFiles = await drive.files.list({
+      q: `'${folderId}' in parents and mimeType='application/json' and trashed=false`,
+      fields: 'files(id, name)',
+      spaces: 'drive'
+    });
+
+    if (existingFiles.data.files && existingFiles.data.files.length > 0) {
+      for (const file of existingFiles.data.files) {
+        await drive.files.delete({ fileId: file.id });
+        console.log('[Google Drive] Deleted old backup file:', file.id);
+      }
     }
 
     // Create backup file with timestamp
