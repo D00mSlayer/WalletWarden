@@ -116,7 +116,6 @@ function ExpenseForm({ onSubmit, defaultValues, onCancel }: any) {
       paymentMethod: shareForm.paymentMethod
     } as Share;
 
-    console.log("Adding new share:", newShare);
     setShares(prevShares => [...prevShares, newShare]);
 
     // Reset form
@@ -129,19 +128,13 @@ function ExpenseForm({ onSubmit, defaultValues, onCancel }: any) {
   };
 
   const removeShare = (index: number) => {
-    console.log(`Removing share at index ${index} from`, shares);
     const newShares = [...shares];
     newShares.splice(index, 1);
     setShares(newShares);
-    console.log("Shares after removal:", newShares);
   };
 
   const handleSubmit = async (data: any) => {
     try {
-      console.log("[ExpenseForm] Starting form submission");
-      console.log("[ExpenseForm] Form data:", data);
-      console.log("[ExpenseForm] Current shares:", shares);
-
       if (isSharedExpense) {
         if (shares.length === 0) {
           toast({
@@ -153,8 +146,6 @@ function ExpenseForm({ onSubmit, defaultValues, onCancel }: any) {
         }
 
         const totalShares = shares.reduce((sum, share) => sum + share.amount, 0);
-        console.log("[ExpenseForm] Total shares amount:", totalShares);
-        console.log("[ExpenseForm] Form amount:", Number(data.amount));
 
         if (Math.abs(totalShares - Number(data.amount)) > 0.01) {
           toast({
@@ -178,7 +169,6 @@ function ExpenseForm({ onSubmit, defaultValues, onCancel }: any) {
           }))
         };
 
-        console.log("[ExpenseForm] Submitting shared expense:", formattedData);
         await onSubmit(formattedData);
       } else {
         if (data.paidBy === "Other" && !data.payerName) {
@@ -201,7 +191,6 @@ function ExpenseForm({ onSubmit, defaultValues, onCancel }: any) {
           paymentMethod: data.paymentMethod,
         };
 
-        console.log("[ExpenseForm] Submitting individual expense:", formattedData);
         await onSubmit(formattedData);
       }
     } catch (error) {
@@ -215,8 +204,13 @@ function ExpenseForm({ onSubmit, defaultValues, onCancel }: any) {
   };
 
   useEffect(() => {
-    console.log("[ExpenseForm] Shares updated:", shares);
   }, [shares]);
+
+  const updateShare = (index: number, field: keyof Share, value: any) => {
+    const newShares = [...shares];
+    newShares[index] = { ...newShares[index], [field]: value };
+    setShares(newShares);
+  };
 
   return (
     <form onSubmit={form.handleSubmit(handleSubmit)}>
@@ -369,13 +363,7 @@ function ExpenseForm({ onSubmit, defaultValues, onCancel }: any) {
               </div>
             </div>
 
-            const updateShare = (index: number, field: keyof Share, value: any) => {
-    const newShares = [...shares];
-    newShares[index] = { ...newShares[index], [field]: value };
-    setShares(newShares);
-  };
-
-  <div className="space-y-4">
+            <div className="space-y-4">
               {shares.map((share, index) => (
                 <div key={index} className="space-y-3 p-3 border rounded-md">
                   <div className="flex justify-between items-start">
@@ -470,7 +458,6 @@ function ExpenseForm({ onSubmit, defaultValues, onCancel }: any) {
                     type="button"
                     variant="outline"
                     className="w-full"
-                    onClick={()=> {}}
                   >
                     <PlusCircle className="h-4 w-4 mr-2" />
                     Add Share
@@ -537,7 +524,7 @@ function ExpenseForm({ onSubmit, defaultValues, onCancel }: any) {
                           type="number"
                           placeholder="Amount"
                           value={shareForm.amount || ""}
-                          onChange={(e) => setShareForm({ ...shareForm, amount: e.target.value })}
+                          onChange={(e) => setShareForm({ ...shareForm, amount: Number(e.target.value) })}
                           className="mt-1.5"
                         />
                       </div>
@@ -545,7 +532,6 @@ function ExpenseForm({ onSubmit, defaultValues, onCancel }: any) {
                       <Button 
                         onClick={() => {
                           addShare();
-                          console.log("Share added, current shares:", [...shares, shareForm]);
                           document.body.click(); // Close the popover after adding
                         }}
                         type="button"
@@ -806,32 +792,25 @@ export default function Expenses() {
   const addExpenseMutation = useMutation({
     mutationFn: async (data: any) => {
       try {
-        console.log("[Mutation] Starting expense creation with data:", data);
         const res = await apiRequest("POST", "/api/business/expenses", data);
-        console.log("[Mutation] API response status:", res.status);
 
         if (!res.ok) {
           const errorData = await res.json();
-          console.error("[Mutation] API error response:", errorData);
           throw new Error(errorData.message || "Failed to add expense");
         }
 
         const responseData = await res.json();
-        console.log("[Mutation] API success response:", responseData);
         return responseData;
       } catch (error: any) {
-        console.error("[Mutation] Error occurred:", error);
         throw new Error(error.message || "Failed to add expense");
       }
     },
     onSuccess: () => {
-      console.log("[Mutation] Successfully added expense");
       queryClient.invalidateQueries({ queryKey: ["/api/business/expenses"] });
       toast({ title: "Expense added successfully" });
       setIsOpen(false);
     },
     onError: (error: Error) => {
-      console.error("[Mutation] Error in mutation:", error);
       toast({
         title: "Failed to add expense",
         description: error.message,
