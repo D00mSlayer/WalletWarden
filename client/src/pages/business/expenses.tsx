@@ -97,7 +97,7 @@ function ExpenseForm({ onSubmit, defaultValues, onCancel }: any) {
         description: "Please fill in all share details",
         variant: "destructive",
       });
-      return;
+      return false;
     }
 
     if (shareForm.payerType === "Other" && !shareForm.payerName) {
@@ -106,7 +106,7 @@ function ExpenseForm({ onSubmit, defaultValues, onCancel }: any) {
         description: "Please enter a name for 'Other' payer",
         variant: "destructive",
       });
-      return;
+      return false;
     }
 
     const newShare = {
@@ -125,6 +125,8 @@ function ExpenseForm({ onSubmit, defaultValues, onCancel }: any) {
       paymentMethod: undefined,
       payerName: undefined
     });
+
+    return true;
   };
 
   const removeShare = (index: number) => {
@@ -367,185 +369,128 @@ function ExpenseForm({ onSubmit, defaultValues, onCancel }: any) {
               {shares.map((share, index) => (
                 <div key={index} className="space-y-3 p-3 border rounded-md">
                   <div className="flex justify-between items-start">
-                    <div className="flex-1 space-y-3">
-                      <div>
-                        <Label>Payer Type</Label>
-                        <Select
-                          value={share.payerType}
-                          onValueChange={(value: typeof paymentSources[number]) => {
-                            updateShare(index, "payerType", value);
-                            if (value !== "Other") {
-                              updateShare(index, "payerName", undefined);
-                            }
-                          }}
-                        >
-                          <SelectTrigger className="mt-1.5">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {paymentSources.map((source) => (
-                              <SelectItem key={source} value={source}>
-                                {source}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      {share.payerType === "Other" && (
-                        <div>
-                          <Label>Person Name</Label>
-                          <Input
-                            className="mt-1.5"
-                            value={share.payerName || ""}
-                            onChange={(e) => updateShare(index, "payerName", e.target.value)}
-                            placeholder="Enter person name"
-                          />
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between">
+                        <div className="font-medium">
+                          {share.payerType === "Other" ? share.payerName : share.payerType}
                         </div>
-                      )}
-
-                      <div>
-                        <Label>Amount</Label>
-                        <div className="relative mt-1.5">
-                          <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
-                          <Input
-                            type="number"
-                            step="0.01"
-                            className="pl-10"
-                            value={share.amount}
-                            onChange={(e) => updateShare(index, "amount", Number(e.target.value))}
-                          />
-                        </div>
-                      </div>
-
-                      <div>
-                        <Label>Payment Method</Label>
-                        <Select
-                          value={share.paymentMethod}
-                          onValueChange={(value: typeof paymentMethods[number]) =>
-                            updateShare(index, "paymentMethod", value)
-                          }
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="text-destructive"
+                          onClick={() => removeShare(index)}
                         >
-                          <SelectTrigger className="mt-1.5">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {paymentMethods.map((method) => (
-                              <SelectItem key={method} value={method}>
-                                {method}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                          <MinusCircle className="h-4 w-4" />
+                        </Button>
+                      </div>
+                      <div className="text-sm text-muted-foreground mt-1">
+                        via {share.paymentMethod}
+                      </div>
+                      <div className="text-sm font-medium mt-2">
+                        Amount: ₹{share.amount}
                       </div>
                     </div>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="text-destructive"
-                      onClick={() => removeShare(index)}
-                    >
-                      <MinusCircle className="h-4 w-4" />
-                    </Button>
                   </div>
                 </div>
               ))}
+            </div>
 
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="w-full"
-                  >
-                    <PlusCircle className="h-4 w-4 mr-2" />
-                    Add Share
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-80">
-                  <div className="p-4">
-                    <div className="grid gap-4">
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full"
+                >
+                  <PlusCircle className="h-4 w-4 mr-2" />
+                  Add Share
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-80">
+                <div className="p-4">
+                  <div className="grid gap-4">
+                    <div>
+                      <Label htmlFor="addSharePayerType">Payer</Label>
+                      <Select
+                        value={shareForm.payerType}
+                        onValueChange={(value) => setShareForm({ ...shareForm, payerType: value })}
+                      >
+                        <SelectTrigger id="addSharePayerType" className="mt-1.5">
+                          <SelectValue placeholder="Select payer" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {paymentSources.map((source) => (
+                            <SelectItem key={source} value={source}>
+                              {source}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {shareForm.payerType === "Other" && (
                       <div>
-                        <Label htmlFor="addSharePayerType">Payer</Label>
-                        <Select
-                          value={shareForm.payerType}
-                          onValueChange={(value) => setShareForm({ ...shareForm, payerType: value })}
-                        >
-                          <SelectTrigger id="addSharePayerType" className="mt-1.5">
-                            <SelectValue placeholder="Select payer" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {paymentSources.map((source) => (
-                              <SelectItem key={source} value={source}>
-                                {source}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      {shareForm.payerType === "Other" && (
-                        <div>
-                          <Label htmlFor="addSharePayerName">Payer Name</Label>
-                          <Input
-                            id="addSharePayerName"
-                            placeholder="Enter name"
-                            value={shareForm.payerName || ""}
-                            onChange={(e) => setShareForm({ ...shareForm, payerName: e.target.value })}
-                            className="mt-1.5"
-                          />
-                        </div>
-                      )}
-
-                      <div>
-                        <Label htmlFor="addSharePaymentMethod">Payment Method</Label>
-                        <Select
-                          value={shareForm.paymentMethod}
-                          onValueChange={(value) => setShareForm({ ...shareForm, paymentMethod: value })}
-                        >
-                          <SelectTrigger id="addSharePaymentMethod" className="mt-1.5">
-                            <SelectValue placeholder="Select method" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {paymentMethods.map((method) => (
-                              <SelectItem key={method} value={method}>
-                                {method}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      <div>
-                        <Label htmlFor="addShareAmount">Amount</Label>
+                        <Label htmlFor="addSharePayerName">Payer Name</Label>
                         <Input
-                          id="addShareAmount"
-                          type="number"
-                          placeholder="Amount"
-                          value={shareForm.amount || ""}
-                          onChange={(e) => setShareForm({ ...shareForm, amount: Number(e.target.value) })}
+                          id="addSharePayerName"
+                          placeholder="Enter name"
+                          value={shareForm.payerName || ""}
+                          onChange={(e) => setShareForm({ ...shareForm, payerName: e.target.value })}
                           className="mt-1.5"
                         />
                       </div>
+                    )}
 
-                      <Button 
-                        onClick={() => {
-                          addShare();
-                          document.body.click(); // Close the popover after adding
-                        }}
-                        type="button"
+                    <div>
+                      <Label htmlFor="addSharePaymentMethod">Payment Method</Label>
+                      <Select
+                        value={shareForm.paymentMethod}
+                        onValueChange={(value) => setShareForm({ ...shareForm, paymentMethod: value })}
                       >
-                        Add Share
-                      </Button>
+                        <SelectTrigger id="addSharePaymentMethod" className="mt-1.5">
+                          <SelectValue placeholder="Select method" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {paymentMethods.map((method) => (
+                            <SelectItem key={method} value={method}>
+                              {method}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
-                  </div>
-                </PopoverContent>
-              </Popover>
 
-              <div className="mt-4 text-sm text-muted-foreground">
-                Total: {shares.reduce((sum, share) => sum + Number(share.amount || 0), 0)} / {form.watch("amount") || 0}
-              </div>
+                    <div>
+                      <Label htmlFor="addShareAmount">Amount</Label>
+                      <Input
+                        id="addShareAmount"
+                        type="number"
+                        placeholder="Amount"
+                        value={shareForm.amount || ""}
+                        onChange={(e) => setShareForm({ ...shareForm, amount: Number(e.target.value) })}
+                        className="mt-1.5"
+                      />
+                    </div>
+
+                    <Button 
+                      onClick={() => {
+                        if (addShare()) {
+                          // Close popover only if share was successfully added
+                          document.body.click();
+                        }
+                      }}
+                      type="button"
+                    >
+                      Add Share
+                    </Button>
+                  </div>
+                </div>
+              </PopoverContent>
+            </Popover>
+
+            <div className="mt-4 text-sm text-muted-foreground">
+              Total: {shares.reduce((sum, share) => sum + Number(share.amount || 0), 0)} / {form.watch("amount") || 0}
             </div>
           </div>
         )}
