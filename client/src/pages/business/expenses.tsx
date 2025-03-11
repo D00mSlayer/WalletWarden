@@ -48,8 +48,10 @@ function ExpenseForm({ onSubmit, onCancel }: ExpenseFormProps) {
       amount: "",
       date: new Date().toISOString().split('T')[0],
       description: "",
+      paidBy: "",
+      payerName: "",
+      paymentMethod: "",
     },
-    mode: "onChange"
   });
 
   const addShare = () => {
@@ -88,55 +90,53 @@ function ExpenseForm({ onSubmit, onCancel }: ExpenseFormProps) {
     setShares(prevShares => prevShares.filter((_, i) => i !== index));
   };
 
-  const handleSubmit = async (formData: any) => {
+  const validateSharedExpense = (formData: any) => {
+    if (shares.length === 0) {
+      toast({
+        title: "Error",
+        description: "Add at least one share for shared expenses",
+        variant: "destructive",
+      });
+      return false;
+    }
+
+    const totalShares = shares.reduce((sum, share) => sum + Number(share.amount), 0);
+    const formAmount = Number(formData.amount);
+
+    if (Math.abs(totalShares - formAmount) > 0.01) {
+      toast({
+        title: "Error",
+        description: "Total shares must equal the expense amount",
+        variant: "destructive",
+      });
+      return false;
+    }
+
+    return true;
+  };
+
+  const onFormSubmit = async (formData: any) => {
     try {
       if (isSharedExpense) {
-        if (shares.length === 0) {
-          toast({
-            title: "Error",
-            description: "Add at least one share for shared expenses",
-            variant: "destructive",
-          });
-          return;
-        }
-
-        const totalShares = shares.reduce((sum, share) => sum + Number(share.amount), 0);
-        const formAmount = Number(formData.amount);
-
-        if (Math.abs(totalShares - formAmount) > 0.01) {
-          toast({
-            title: "Error",
-            description: "Total shares must equal the expense amount",
-            variant: "destructive",
-          });
+        if (!validateSharedExpense(formData)) {
           return;
         }
 
         await onSubmit({
           ...formData,
+          amount: Number(formData.amount),
           isSharedExpense: true,
-          shares: shares.map(share => ({
-            ...share,
-            amount: Number(share.amount)
-          }))
+          shares: shares
         });
       } else {
-        if (formData.paidBy === "Other" && !formData.payerName) {
-          toast({
-            title: "Error",
-            description: "Person name is required when payer is 'Other'",
-            variant: "destructive",
-          });
-          return;
-        }
-
         await onSubmit({
           ...formData,
-          isSharedExpense: false,
-          amount: Number(formData.amount)
+          amount: Number(formData.amount),
+          isSharedExpense: false
         });
       }
     } catch (error) {
+      console.error('Form submission error:', error);
       toast({
         title: "Error",
         description: "Failed to submit expense",
@@ -146,7 +146,7 @@ function ExpenseForm({ onSubmit, onCancel }: ExpenseFormProps) {
   };
 
   return (
-    <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
+    <form onSubmit={form.handleSubmit(onFormSubmit)} className="space-y-4">
       <div>
         <Label htmlFor="date">Date</Label>
         <Input
@@ -195,7 +195,12 @@ function ExpenseForm({ onSubmit, onCancel }: ExpenseFormProps) {
           type="checkbox"
           id="isShared"
           checked={isSharedExpense}
-          onChange={(e) => setIsSharedExpense(e.target.checked)}
+          onChange={(e) => {
+            setIsSharedExpense(e.target.checked);
+            if (!e.target.checked) {
+              setShares([]);
+            }
+          }}
           className="rounded border-gray-300 text-primary focus:ring-primary"
         />
         <Label htmlFor="isShared">This is a shared expense</Label>
@@ -537,7 +542,7 @@ export default function Expenses() {
                 <DialogTitle>Add Expense</DialogTitle>
               </DialogHeader>
               <ExpenseForm
-                onSubmit={(data: any) => addExpenseMutation.mutate(data)}
+                onSubmit={(data) => addExpenseMutation.mutateAsync(data)}
                 onCancel={() => setIsOpen(false)}
               />
             </DialogContent>
