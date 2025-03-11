@@ -369,7 +369,13 @@ function ExpenseForm({ onSubmit, defaultValues, onCancel }: any) {
               </div>
             </div>
 
-            <div className="space-y-4">
+            const updateShare = (index: number, field: keyof Share, value: any) => {
+    const newShares = [...shares];
+    newShares[index] = { ...newShares[index], [field]: value };
+    setShares(newShares);
+  };
+
+  <div className="space-y-4">
               {shares.map((share, index) => (
                 <div key={index} className="space-y-3 p-3 border rounded-md">
                   <div className="flex justify-between items-start">
@@ -540,6 +546,7 @@ function ExpenseForm({ onSubmit, defaultValues, onCancel }: any) {
                         onClick={() => {
                           addShare();
                           console.log("Share added, current shares:", [...shares, shareForm]);
+                          document.body.click(); // Close the popover after adding
                         }}
                         type="button"
                       >
