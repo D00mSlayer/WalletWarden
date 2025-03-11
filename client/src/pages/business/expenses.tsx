@@ -51,15 +51,23 @@ import {
   Calendar,
   Users,
   Upload,
+  X,
+  Plus
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "wouter";
 import { format } from "date-fns";
 import { useState, useEffect } from "react";
+import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 
 function ExpenseForm({ onSubmit, defaultValues, onCancel }: any) {
   const [isSharedExpense, setIsSharedExpense] = useState(false);
   const [shares, setShares] = useState<Share[]>([]);
+  const [shareForm, setShareForm] = useState<Partial<Share>>({
+    payerType: undefined,
+    amount: undefined,
+    paymentMethod: undefined,
+  });
   const { toast } = useToast();
 
   const form = useForm({
@@ -83,21 +91,49 @@ function ExpenseForm({ onSubmit, defaultValues, onCancel }: any) {
     0;
 
   const addShare = () => {
-    setShares([...shares, {
-      payerType: "Personal",
-      amount: 0,
-      paymentMethod: "Cash"
-    }]);
+    if (!shareForm.payerType || !shareForm.paymentMethod || !shareForm.amount) {
+      toast({
+        title: "Error",
+        description: "Please fill in all share details",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (shareForm.payerType === "Other" && !shareForm.payerName) {
+      toast({
+        title: "Error",
+        description: "Please enter a name for 'Other' payer",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const newShare = {
+      payerType: shareForm.payerType,
+      payerName: shareForm.payerName,
+      amount: Number(shareForm.amount),
+      paymentMethod: shareForm.paymentMethod
+    } as Share;
+
+    console.log("Adding new share:", newShare);
+    setShares(prevShares => [...prevShares, newShare]);
+
+    // Reset form
+    setShareForm({
+      payerType: undefined,
+      amount: undefined,
+      paymentMethod: undefined,
+      payerName: undefined
+    });
   };
 
   const removeShare = (index: number) => {
-    setShares(shares.filter((_, i) => i !== index));
-  };
-
-  const updateShare = (index: number, field: keyof Share, value: any) => {
+    console.log(`Removing share at index ${index} from`, shares);
     const newShares = [...shares];
-    newShares[index] = { ...newShares[index], [field]: value };
+    newShares.splice(index, 1);
     setShares(newShares);
+    console.log("Shares after removal:", newShares);
   };
 
   const handleSubmit = async (data: any) => {
@@ -422,15 +458,101 @@ function ExpenseForm({ onSubmit, defaultValues, onCancel }: any) {
                 </div>
               ))}
 
-              <Button
-                type="button"
-                variant="outline"
-                className="w-full"
-                onClick={addShare}
-              >
-                <PlusCircle className="h-4 w-4 mr-2" />
-                Add Share
-              </Button>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full"
+                    onClick={()=> {}}
+                  >
+                    <PlusCircle className="h-4 w-4 mr-2" />
+                    Add Share
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-80">
+                  <div className="p-4">
+                    <div className="grid gap-4">
+                      <div>
+                        <Label htmlFor="addSharePayerType">Payer</Label>
+                        <Select
+                          value={shareForm.payerType}
+                          onValueChange={(value) => setShareForm({ ...shareForm, payerType: value })}
+                        >
+                          <SelectTrigger id="addSharePayerType" className="mt-1.5">
+                            <SelectValue placeholder="Select payer" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {paymentSources.map((source) => (
+                              <SelectItem key={source} value={source}>
+                                {source}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      {shareForm.payerType === "Other" && (
+                        <div>
+                          <Label htmlFor="addSharePayerName">Payer Name</Label>
+                          <Input
+                            id="addSharePayerName"
+                            placeholder="Enter name"
+                            value={shareForm.payerName || ""}
+                            onChange={(e) => setShareForm({ ...shareForm, payerName: e.target.value })}
+                            className="mt-1.5"
+                          />
+                        </div>
+                      )}
+
+                      <div>
+                        <Label htmlFor="addSharePaymentMethod">Payment Method</Label>
+                        <Select
+                          value={shareForm.paymentMethod}
+                          onValueChange={(value) => setShareForm({ ...shareForm, paymentMethod: value })}
+                        >
+                          <SelectTrigger id="addSharePaymentMethod" className="mt-1.5">
+                            <SelectValue placeholder="Select method" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {paymentMethods.map((method) => (
+                              <SelectItem key={method} value={method}>
+                                {method}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div>
+                        <Label htmlFor="addShareAmount">Amount</Label>
+                        <Input
+                          id="addShareAmount"
+                          type="number"
+                          placeholder="Amount"
+                          value={shareForm.amount || ""}
+                          onChange={(e) => setShareForm({ ...shareForm, amount: e.target.value })}
+                          className="mt-1.5"
+                        />
+                      </div>
+
+                      <Button 
+                        onClick={() => {
+                          addShare();
+                          console.log("Share added, current shares:", [...shares, shareForm]);
+                        }}
+                        type="button"
+                      >
+                        Add Share
+                      </Button>
+                    </div>
+                  </div>
+                </PopoverContent>
+              </Popover>
+
+              <div className="mt-4 text-sm text-muted-foreground">
+                Total: {shares.reduce((sum, share) => sum + Number(share.amount || 0), 0)} / {form.watch("amount") || 0}
+              </div>
             </div>
           </div>
         )}
