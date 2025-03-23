@@ -223,7 +223,6 @@ function ExpenseForm({ onSubmit, onCancel }: ExpenseFormProps) {
   const onFormSubmit = async (formData: any) => {
     try {
       if (isSharedExpense) {
-        // Validate shared expense
         if (shares.length === 0) {
           toast({
             title: "Error",
@@ -245,15 +244,13 @@ function ExpenseForm({ onSubmit, onCancel }: ExpenseFormProps) {
           return;
         }
 
-        // Submit shared expense
         await onSubmit({
           ...formData,
           amount: formAmount,
           isSharedExpense: true,
-          shares
+          shares: shares
         });
       } else {
-        // Submit regular expense
         await onSubmit({
           ...formData,
           amount: Number(formData.amount),
@@ -271,9 +268,9 @@ function ExpenseForm({ onSubmit, onCancel }: ExpenseFormProps) {
   };
 
   return (
-    <div className="flex flex-col h-[80vh]">
-      <div className="flex-1 overflow-y-auto px-4">
-        <form id="expenseForm" onSubmit={form.handleSubmit(onFormSubmit)} className="space-y-4">
+    <>
+      <div className="max-h-[calc(100vh-14rem)] overflow-y-auto px-6">
+        <form id="expenseForm" onSubmit={form.handleSubmit(onFormSubmit)} className="space-y-4 py-4">
           <div>
             <Label htmlFor="date">Date</Label>
             <Input
@@ -421,15 +418,17 @@ function ExpenseForm({ onSubmit, onCancel }: ExpenseFormProps) {
         </form>
       </div>
 
-      <div className="sticky bottom-0 bg-white py-4 px-4 border-t flex justify-end gap-2">
-        <Button type="button" variant="outline" onClick={onCancel}>
-          Cancel
-        </Button>
-        <Button type="submit" form="expenseForm">
-          Add Expense
-        </Button>
+      <div className="px-6 py-4 border-t bg-white">
+        <div className="flex justify-end gap-2">
+          <Button type="button" variant="outline" onClick={onCancel}>
+            Cancel
+          </Button>
+          <Button type="submit" form="expenseForm">
+            Add Expense
+          </Button>
+        </div>
       </div>
-    </div>
+    </>
   );
 }
 
