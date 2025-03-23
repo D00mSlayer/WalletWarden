@@ -41,7 +41,7 @@ const DialogContent = React.forwardRef<
         "data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95",
         "data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%]",
         "data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%]",
-        "max-h-[90vh] min-h-[150px]",
+        "max-h-[85vh] overflow-hidden",
         className
       )}
       {...props}
@@ -62,7 +62,7 @@ const DialogHeader = ({
 }: React.HTMLAttributes<HTMLDivElement>) => (
   <div
     className={cn(
-      "flex flex-col space-y-1.5 text-center sm:text-left px-6 py-4 border-b bg-background sticky top-0 z-50",
+      "flex flex-col space-y-1.5 text-center sm:text-left p-6 pb-4 border-b bg-background sticky top-0 z-50",
       className
     )}
     {...props}
@@ -80,7 +80,7 @@ const DialogBody = React.forwardRef<
       className={cn("p-6", className)}
       {...props}
     >
-      <div className="space-y-6">
+      <div className="space-y-4">
         {children}
       </div>
     </div>
@@ -94,7 +94,7 @@ const DialogFooter = ({
 }: React.HTMLAttributes<HTMLDivElement>) => (
   <div
     className={cn(
-      "flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2 px-6 py-4 border-t bg-background sticky bottom-0 z-50",
+      "flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2 p-6 pt-4 border-t bg-background sticky bottom-0 z-50",
       className
     )}
     {...props}
