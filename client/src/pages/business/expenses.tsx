@@ -9,7 +9,6 @@ import {
   DialogTitle,
   DialogTrigger,
   DialogFooter,
-  DialogDescription,
 } from "@/components/ui/dialog";
 import {
   Select,
@@ -23,11 +22,51 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { insertExpenseSchema, expenseCategories, paymentSources, paymentMethods, type Expense, type Share } from "@shared/schema";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Loader2, PlusCircle, MinusCircle, IndianRupee, Upload } from "lucide-react";
+import { Loader2, PlusCircle, MinusCircle, IndianRupee } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "wouter";
 import { format } from "date-fns";
 import { useState } from "react";
+
+function ShareList({ shares, onRemove, totalAmount }: { shares: Share[]; onRemove: (index: number) => void; totalAmount: number }) {
+  const totalShares = shares.reduce((sum, share) => sum + Number(share.amount), 0);
+  const remaining = Math.max(0, totalAmount - totalShares);
+
+  return (
+    <div className="space-y-4">
+      <div className="flex justify-between text-sm">
+        <span className="font-medium">Expense Shares</span>
+        <span className={remaining === 0 ? "text-green-600" : "text-red-600"}>
+          Remaining: ₹{remaining.toFixed(2)}
+        </span>
+      </div>
+
+      <div className="space-y-2">
+        {shares.map((share, index) => (
+          <div key={index} className="flex justify-between items-center p-3 border rounded-md">
+            <div>
+              <div className="font-medium">
+                {share.payerType === "Other" ? share.payerName : share.payerType}
+              </div>
+              <div className="text-sm text-muted-foreground">
+                ₹{share.amount} via {share.paymentMethod}
+              </div>
+            </div>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={() => onRemove(index)}
+              className="text-destructive"
+            >
+              <MinusCircle className="h-4 w-4" />
+            </Button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 function ShareForm({ onSubmit }: { onSubmit: (share: Share) => void }) {
   const [formData, setFormData] = useState<Partial<Share>>({});
@@ -135,52 +174,7 @@ function ShareForm({ onSubmit }: { onSubmit: (share: Share) => void }) {
   );
 }
 
-function ShareList({ shares, onRemove, totalAmount }: { shares: Share[]; onRemove: (index: number) => void; totalAmount: number }) {
-  const totalShares = shares.reduce((sum, share) => sum + Number(share.amount), 0);
-  const remaining = Math.max(0, totalAmount - totalShares);
-
-  return (
-    <div className="space-y-4">
-      <div className="flex justify-between text-sm">
-        <span className="font-medium">Expense Shares</span>
-        <span className={remaining === 0 ? "text-green-600" : "text-red-600"}>
-          Remaining: ₹{remaining.toFixed(2)}
-        </span>
-      </div>
-
-      <div className="space-y-2 max-h-[40vh] overflow-y-auto">
-        {shares.map((share, index) => (
-          <div key={index} className="flex justify-between items-center p-3 border rounded-md">
-            <div>
-              <div className="font-medium">
-                {share.payerType === "Other" ? share.payerName : share.payerType}
-              </div>
-              <div className="text-sm text-muted-foreground">
-                ₹{share.amount} via {share.paymentMethod}
-              </div>
-            </div>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              onClick={() => onRemove(index)}
-              className="text-destructive"
-            >
-              <MinusCircle className="h-4 w-4" />
-            </Button>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-type ExpenseFormProps = {
-  onSubmit: (data: any) => Promise<void>;
-  onCancel: () => void;
-};
-
-function ExpenseForm({ onSubmit, onCancel }: ExpenseFormProps) {
+function ExpenseForm({ onSubmit, onCancel }: { onSubmit: (data: any) => Promise<void>; onCancel: () => void }) {
   const [isSharedExpense, setIsSharedExpense] = useState(false);
   const [shares, setShares] = useState<Share[]>([]);
   const [isAddingShare, setIsAddingShare] = useState(false);
@@ -220,12 +214,11 @@ function ExpenseForm({ onSubmit, onCancel }: ExpenseFormProps) {
     setShares(prev => prev.filter((_, i) => i !== index));
   };
 
-  const onFormSubmit = async (formData: any) => {
-    console.log("Form submitted with data:", formData);
+  const handleSubmit = async (data: any) => {
+    console.log("Form submitted with data:", data);
 
     try {
-      // Basic validation
-      if (!formData.category || !formData.amount || !formData.date) {
+      if (!data.category || !data.amount || !data.date) {
         toast({
           title: "Error",
           description: "Please fill in all required fields",
@@ -245,7 +238,7 @@ function ExpenseForm({ onSubmit, onCancel }: ExpenseFormProps) {
         }
 
         const totalShares = shares.reduce((sum, share) => sum + Number(share.amount), 0);
-        const formAmount = Number(formData.amount);
+        const formAmount = Number(data.amount);
 
         if (Math.abs(totalShares - formAmount) > 0.01) {
           toast({
@@ -256,31 +249,28 @@ function ExpenseForm({ onSubmit, onCancel }: ExpenseFormProps) {
           return;
         }
 
-        const submissionData = {
-          category: formData.category,
+        await onSubmit({
+          category: data.category,
           amount: formAmount,
-          date: formData.date,
-          description: formData.description || "",
+          date: data.date,
+          description: data.description || "",
           isSharedExpense: true,
           shares: shares.map(share => ({
             ...share,
             amount: Number(share.amount)
           }))
-        };
-
-        console.log("Submitting shared expense:", submissionData);
-        await onSubmit(submissionData);
+        });
       } else {
-        if (!formData.paidBy) {
+        if (!data.paidBy) {
           toast({
             title: "Error",
-            description: "Please select who paid the expense",
+            description: "Please select who paid",
             variant: "destructive",
           });
           return;
         }
 
-        if (formData.paidBy === "Other" && !formData.payerName) {
+        if (data.paidBy === "Other" && !data.payerName) {
           toast({
             title: "Error",
             description: "Please enter the name of the person who paid",
@@ -289,7 +279,7 @@ function ExpenseForm({ onSubmit, onCancel }: ExpenseFormProps) {
           return;
         }
 
-        if (!formData.paymentMethod) {
+        if (!data.paymentMethod) {
           toast({
             title: "Error",
             description: "Please select a payment method",
@@ -298,15 +288,16 @@ function ExpenseForm({ onSubmit, onCancel }: ExpenseFormProps) {
           return;
         }
 
-        const submissionData = {
-          ...formData,
-          amount: Number(formData.amount),
-          description: formData.description || "",
-          isSharedExpense: false
-        };
-
-        console.log("Submitting regular expense:", submissionData);
-        await onSubmit(submissionData);
+        await onSubmit({
+          category: data.category,
+          amount: Number(data.amount),
+          date: data.date,
+          description: data.description || "",
+          isSharedExpense: false,
+          paidBy: data.paidBy,
+          payerName: data.payerName,
+          paymentMethod: data.paymentMethod,
+        });
       }
     } catch (error) {
       console.error('Form submission error:', error);
@@ -319,9 +310,9 @@ function ExpenseForm({ onSubmit, onCancel }: ExpenseFormProps) {
   };
 
   return (
-    <>
-      <div className="max-h-[calc(100vh-14rem)] overflow-y-auto px-6">
-        <form id="expenseForm" onSubmit={form.handleSubmit(onFormSubmit)} className="space-y-4 py-4">
+    <div className="flex flex-col h-[calc(100vh-10rem)]">
+      <div className="flex-1 overflow-y-auto px-6 py-4">
+        <form id="expenseForm" className="space-y-4">
           <div>
             <Label htmlFor="date">Date</Label>
             <Input
@@ -423,7 +414,7 @@ function ExpenseForm({ onSubmit, onCancel }: ExpenseFormProps) {
                   onValueChange={(value) => form.setValue("paymentMethod", value)}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Select payment method" />
+                    <SelectValue placeholder="Select method" />
                   </SelectTrigger>
                   <SelectContent>
                     {paymentMethods.map((method) => (
@@ -469,17 +460,15 @@ function ExpenseForm({ onSubmit, onCancel }: ExpenseFormProps) {
         </form>
       </div>
 
-      <div className="px-6 py-4 border-t bg-white">
-        <div className="flex justify-end gap-2">
-          <Button type="button" variant="outline" onClick={onCancel}>
-            Cancel
-          </Button>
-          <Button type="submit" form="expenseForm">
-            Add Expense
-          </Button>
-        </div>
+      <div className="px-6 py-4 border-t flex justify-end gap-2">
+        <Button type="button" variant="outline" onClick={onCancel}>
+          Cancel
+        </Button>
+        <Button onClick={form.handleSubmit(handleSubmit)}>
+          Add Expense
+        </Button>
       </div>
-    </>
+    </div>
   );
 }
 
@@ -550,120 +539,6 @@ function ExpenseCard({ expense }: { expense: Expense }) {
   );
 }
 
-function ImportCSVDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
-  const { toast } = useToast();
-  const [isImporting, setIsImporting] = useState(false);
-  const [errors, setErrors] = useState<string[]>([]);
-
-  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    setIsImporting(true);
-    setErrors([]);
-    const reader = new FileReader();
-
-    reader.onload = async (e) => {
-      try {
-        const text = e.target?.result as string;
-        const rows = text.split('\n')
-          .map(row => row.split(',').map(cell => cell.trim()))
-          .filter(row => row.length >= 7); // Ensure we have all required columns
-
-        const response = await apiRequest(
-          "POST",
-          "/api/business/expenses/import-csv",
-          { data: rows }
-        );
-
-        if (!response.ok) {
-          throw new Error("Failed to import CSV");
-        }
-
-        const result = await response.json();
-
-        if (result.errors.length > 0) {
-          setErrors(result.errors);
-          toast({
-            title: "Import completed with errors",
-            description: `Imported ${result.imported} records. ${result.errors.length} errors occurred.`,
-            variant: "destructive",
-          });
-        } else {
-          toast({
-            title: "Import successful",
-            description: `Successfully imported ${result.imported} records.`,
-          });
-          onOpenChange(false);
-        }
-
-        queryClient.invalidateQueries({ queryKey: ["/api/business/expenses"] });
-      } catch (error) {
-        toast({
-          title: "Import failed",
-          description: error instanceof Error ? error.message : "Failed to import CSV",
-          variant: "destructive",
-        });
-      } finally {
-        setIsImporting(false);
-      }
-    };
-
-    reader.readAsText(file);
-  };
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Import Expenses from CSV</DialogTitle>
-          <DialogDescription>
-            Upload a CSV file with the following columns:
-            <br />
-            Category, Description, Total Cost (ignored), Paid by Me, Paid by Bina, Paid by Business, Notes
-            <br />
-            <br />
-            Note: All expenses will be dated October 15, 2024 by default, unless a date is found in the Notes column (e.g. "Paid Jan 25 2025").
-          </DialogDescription>
-        </DialogHeader>
-        <div className="space-y-4">
-          <div>
-            <Label htmlFor="csvFile">Select CSV File</Label>
-            <Input
-              id="csvFile"
-              type="file"
-              accept=".csv"
-              onChange={handleFileChange}
-              disabled={isImporting}
-            />
-          </div>
-          {isImporting && (
-            <div className="flex items-center justify-center">
-              <Loader2 className="h-6 w-6 animate-spin" />
-              <span className="ml-2">Importing...</span>
-            </div>
-          )}
-          {errors.length > 0 && (
-            <div className="mt-4 space-y-2">
-              <h4 className="font-medium text-destructive">Import Errors:</h4>
-              <div className="max-h-40 overflow-y-auto space-y-1">
-                {errors.map((error, index) => (
-                  <p key={index} className="text-sm text-destructive">{error}</p>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
 export default function Expenses() {
   const { toast } = useToast();
   const [isOpen, setIsOpen] = useState(false);
@@ -717,37 +592,25 @@ export default function Expenses() {
             <h1 className="text-2xl font-bold text-primary">Business Expenses</h1>
           </div>
 
-          <div className="flex gap-2">
-            <Dialog open={isOpen} onOpenChange={setIsOpen}>
-              <DialogTrigger asChild>
-                <Button>
-                  <PlusCircle className="h-4 w-4 mr-2" />
-                  Add Expense
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-lg p-0">
-                <DialogHeader className="px-4 py-2 border-b">
-                  <DialogTitle>Add Expense</DialogTitle>
-                </DialogHeader>
-                <ExpenseForm
-                  onSubmit={(data) => addExpenseMutation.mutateAsync(data)}
-                  onCancel={() => setIsOpen(false)}
-                />
-              </DialogContent>
-            </Dialog>
-
-            <Button
-              variant="outline"
-              onClick={() => setImportDialogOpen(true)}
-            >
-              <Upload className="h-4 w-4 mr-2" />
-              Import CSV
-            </Button>
-          </div>
+          <Dialog open={isOpen} onOpenChange={setIsOpen}>
+            <DialogTrigger asChild>
+              <Button>
+                <PlusCircle className="h-4 w-4 mr-2" />
+                Add Expense
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-lg p-0">
+              <DialogHeader className="px-6 py-4 border-b">
+                <DialogTitle>Add Expense</DialogTitle>
+              </DialogHeader>
+              <ExpenseForm
+                onSubmit={(data) => addExpenseMutation.mutateAsync(data)}
+                onCancel={() => setIsOpen(false)}
+              />
+            </DialogContent>
+          </Dialog>
         </div>
       </header>
-
-      <ImportCSVDialog open={importDialogOpen} onOpenChange={setImportDialogOpen} />
 
       <main className="max-w-7xl mx-auto px-4 py-8">
         {isLoading ? (
