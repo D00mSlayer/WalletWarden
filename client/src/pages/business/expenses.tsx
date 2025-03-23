@@ -9,6 +9,7 @@ import {
   DialogTitle,
   DialogTrigger,
   DialogFooter,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import {
   Select,
@@ -22,7 +23,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { insertExpenseSchema, expenseCategories, paymentSources, paymentMethods, type Expense, type Share } from "@shared/schema";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Loader2, PlusCircle, MinusCircle, IndianRupee } from "lucide-react";
+import { Loader2, PlusCircle, MinusCircle, IndianRupee, Upload } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "wouter";
 import { format } from "date-fns";
@@ -387,10 +388,10 @@ function ExpenseForm({ onSubmit, onCancel }: ExpenseFormProps) {
             </>
           ) : (
             <div className="space-y-4 border rounded-lg p-4">
-              <ShareList 
-                shares={shares} 
-                onRemove={removeShare} 
-                totalAmount={Number(form.watch("amount") || 0)} 
+              <ShareList
+                shares={shares}
+                onRemove={removeShare}
+                totalAmount={Number(form.watch("amount") || 0)}
               />
 
               {isAddingShare ? (
@@ -499,9 +500,124 @@ function ExpenseCard({ expense }: { expense: Expense }) {
   );
 }
 
+function ImportCSVDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
+  const { toast } = useToast();
+  const [isImporting, setIsImporting] = useState(false);
+  const [errors, setErrors] = useState<string[]>([]);
+
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setIsImporting(true);
+    setErrors([]);
+    const reader = new FileReader();
+
+    reader.onload = async (e) => {
+      try {
+        const text = e.target?.result as string;
+        const rows = text.split('\n')
+          .map(row => row.split(',').map(cell => cell.trim()))
+          .filter(row => row.length >= 7); // Ensure we have all required columns
+
+        const response = await apiRequest(
+          "POST",
+          "/api/business/expenses/import-csv",
+          { data: rows }
+        );
+
+        if (!response.ok) {
+          throw new Error("Failed to import CSV");
+        }
+
+        const result = await response.json();
+
+        if (result.errors.length > 0) {
+          setErrors(result.errors);
+          toast({
+            title: "Import completed with errors",
+            description: `Imported ${result.imported} records. ${result.errors.length} errors occurred.`,
+            variant: "destructive",
+          });
+        } else {
+          toast({
+            title: "Import successful",
+            description: `Successfully imported ${result.imported} records.`,
+          });
+          onOpenChange(false);
+        }
+
+        queryClient.invalidateQueries({ queryKey: ["/api/business/expenses"] });
+      } catch (error) {
+        toast({
+          title: "Import failed",
+          description: error instanceof Error ? error.message : "Failed to import CSV",
+          variant: "destructive",
+        });
+      } finally {
+        setIsImporting(false);
+      }
+    };
+
+    reader.readAsText(file);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Import Expenses from CSV</DialogTitle>
+          <DialogDescription>
+            Upload a CSV file with the following columns:
+            <br />
+            Category, Description, Total Cost (ignored), Paid by Me, Paid by Bina, Paid by Business, Notes
+            <br />
+            <br />
+            Note: All expenses will be dated October 15, 2024 by default, unless a date is found in the Notes column (e.g. "Paid Jan 25 2025").
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div>
+            <Label htmlFor="csvFile">Select CSV File</Label>
+            <Input
+              id="csvFile"
+              type="file"
+              accept=".csv"
+              onChange={handleFileChange}
+              disabled={isImporting}
+            />
+          </div>
+          {isImporting && (
+            <div className="flex items-center justify-center">
+              <Loader2 className="h-6 w-6 animate-spin" />
+              <span className="ml-2">Importing...</span>
+            </div>
+          )}
+          {errors.length > 0 && (
+            <div className="mt-4 space-y-2">
+              <h4 className="font-medium text-destructive">Import Errors:</h4>
+              <div className="max-h-40 overflow-y-auto space-y-1">
+                {errors.map((error, index) => (
+                  <p key={index} className="text-sm text-destructive">{error}</p>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export default function Expenses() {
   const { toast } = useToast();
   const [isOpen, setIsOpen] = useState(false);
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
 
   const { data: expenses, isLoading } = useQuery<Expense[]>({
     queryKey: ["/api/business/expenses"],
@@ -547,25 +663,37 @@ export default function Expenses() {
             <h1 className="text-2xl font-bold text-primary">Business Expenses</h1>
           </div>
 
-          <Dialog open={isOpen} onOpenChange={setIsOpen}>
-            <DialogTrigger asChild>
-              <Button>
-                <PlusCircle className="h-4 w-4 mr-2" />
-                Add Expense
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-lg p-0">
-              <DialogHeader className="px-4 py-2 border-b">
-                <DialogTitle>Add Expense</DialogTitle>
-              </DialogHeader>
-              <ExpenseForm
-                onSubmit={(data) => addExpenseMutation.mutateAsync(data)}
-                onCancel={() => setIsOpen(false)}
-              />
-            </DialogContent>
-          </Dialog>
+          <div className="flex gap-2">
+            <Dialog open={isOpen} onOpenChange={setIsOpen}>
+              <DialogTrigger asChild>
+                <Button>
+                  <PlusCircle className="h-4 w-4 mr-2" />
+                  Add Expense
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-lg p-0">
+                <DialogHeader className="px-4 py-2 border-b">
+                  <DialogTitle>Add Expense</DialogTitle>
+                </DialogHeader>
+                <ExpenseForm
+                  onSubmit={(data) => addExpenseMutation.mutateAsync(data)}
+                  onCancel={() => setIsOpen(false)}
+                />
+              </DialogContent>
+            </Dialog>
+
+            <Button
+              variant="outline"
+              onClick={() => setImportDialogOpen(true)}
+            >
+              <Upload className="h-4 w-4 mr-2" />
+              Import CSV
+            </Button>
+          </div>
         </div>
       </header>
+
+      <ImportCSVDialog open={importDialogOpen} onOpenChange={setImportDialogOpen} />
 
       <main className="max-w-7xl mx-auto px-4 py-8">
         {isLoading ? (
