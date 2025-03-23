@@ -1,12 +1,15 @@
 import * as React from "react"
 import * as DialogPrimitive from "@radix-ui/react-dialog"
 import { X } from "lucide-react"
+
 import { cn } from "@/lib/utils"
-import { ScrollArea } from "@/components/ui/scroll-area"
 
 const Dialog = DialogPrimitive.Root
+
 const DialogTrigger = DialogPrimitive.Trigger
+
 const DialogPortal = DialogPrimitive.Portal
+
 const DialogClose = DialogPrimitive.Close
 
 const DialogOverlay = React.forwardRef<
@@ -16,7 +19,7 @@ const DialogOverlay = React.forwardRef<
   <DialogPrimitive.Overlay
     ref={ref}
     className={cn(
-      "fixed inset-0 z-50 bg-black/80 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
+      "fixed inset-0 z-50 bg-black/80  data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
       className
     )}
     {...props}
@@ -33,15 +36,7 @@ const DialogContent = React.forwardRef<
     <DialogPrimitive.Content
       ref={ref}
       className={cn(
-        "fixed left-[50%] top-[50%] z-50 grid translate-x-[-50%] translate-y-[-50%] duration-200",
-        "w-[90%] md:w-full md:max-w-lg bg-background shadow-lg",
-        "flex flex-col rounded-lg border",
-        "data-[state=open]:animate-in data-[state=closed]:animate-out",
-        "data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
-        "data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95",
-        "data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%]",
-        "data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%]",
-        "max-h-[85vh] overflow-hidden",
+        "fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] sm:rounded-lg",
         className
       )}
       {...props}
@@ -62,7 +57,7 @@ const DialogHeader = ({
 }: React.HTMLAttributes<HTMLDivElement>) => (
   <div
     className={cn(
-      "flex flex-col space-y-1.5 text-center sm:text-left p-6 pb-4 border-b bg-background sticky top-0 z-50",
+      "flex flex-col space-y-1.5 text-center sm:text-left",
       className
     )}
     {...props}
@@ -70,31 +65,13 @@ const DialogHeader = ({
 )
 DialogHeader.displayName = "DialogHeader"
 
-const DialogBody = React.forwardRef<
-  HTMLDivElement,
-  React.HTMLAttributes<HTMLDivElement>
->(({ className, children, ...props }, ref) => (
-  <ScrollArea className="flex-1">
-    <div
-      ref={ref}
-      className={cn("p-6", className)}
-      {...props}
-    >
-      <div className="space-y-4">
-        {children}
-      </div>
-    </div>
-  </ScrollArea>
-))
-DialogBody.displayName = "DialogBody"
-
 const DialogFooter = ({
   className,
   ...props
 }: React.HTMLAttributes<HTMLDivElement>) => (
   <div
     className={cn(
-      "flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2 p-6 pt-4 border-t bg-background sticky bottom-0 z-50",
+      "flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2",
       className
     )}
     {...props}
@@ -108,7 +85,10 @@ const DialogTitle = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <DialogPrimitive.Title
     ref={ref}
-    className={cn("text-lg font-semibold", className)}
+    className={cn(
+      "text-lg font-semibold leading-none tracking-tight",
+      className
+    )}
     {...props}
   />
 ))
@@ -134,7 +114,6 @@ export {
   DialogTrigger,
   DialogContent,
   DialogHeader,
-  DialogBody,
   DialogFooter,
   DialogTitle,
   DialogDescription,
