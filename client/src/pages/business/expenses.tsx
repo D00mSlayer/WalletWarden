@@ -250,37 +250,9 @@ function ExpenseForm({ onSubmit, onCancel }: ExpenseFormProps) {
           ...formData,
           amount: formAmount,
           isSharedExpense: true,
-          shares: shares
+          shares
         });
       } else {
-        // Validate regular expense
-        if (!formData.paidBy) {
-          toast({
-            title: "Error",
-            description: "Please select who paid the expense",
-            variant: "destructive",
-          });
-          return;
-        }
-
-        if (formData.paidBy === "Other" && !formData.payerName) {
-          toast({
-            title: "Error",
-            description: "Please enter the name of the person who paid",
-            variant: "destructive",
-          });
-          return;
-        }
-
-        if (!formData.paymentMethod) {
-          toast({
-            title: "Error",
-            description: "Please select a payment method",
-            variant: "destructive",
-          });
-          return;
-        }
-
         // Submit regular expense
         await onSubmit({
           ...formData,
@@ -307,7 +279,6 @@ function ExpenseForm({ onSubmit, onCancel }: ExpenseFormProps) {
             <Input
               id="date"
               type="date"
-              className="mt-1.5"
               {...form.register("date")}
             />
           </div>
@@ -318,7 +289,7 @@ function ExpenseForm({ onSubmit, onCancel }: ExpenseFormProps) {
               value={form.watch("category")}
               onValueChange={(value) => form.setValue("category", value)}
             >
-              <SelectTrigger className="mt-1.5">
+              <SelectTrigger>
                 <SelectValue placeholder="Select category" />
               </SelectTrigger>
               <SelectContent>
@@ -333,7 +304,7 @@ function ExpenseForm({ onSubmit, onCancel }: ExpenseFormProps) {
 
           <div>
             <Label htmlFor="amount">Amount</Label>
-            <div className="relative mt-1.5">
+            <div className="relative">
               <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
               <Input
                 id="amount"
@@ -374,7 +345,7 @@ function ExpenseForm({ onSubmit, onCancel }: ExpenseFormProps) {
                     }
                   }}
                 >
-                  <SelectTrigger className="mt-1.5">
+                  <SelectTrigger>
                     <SelectValue placeholder="Select who paid" />
                   </SelectTrigger>
                   <SelectContent>
@@ -392,7 +363,6 @@ function ExpenseForm({ onSubmit, onCancel }: ExpenseFormProps) {
                   <Label htmlFor="payerName">Person Name</Label>
                   <Input
                     id="payerName"
-                    className="mt-1.5"
                     {...form.register("payerName")}
                   />
                 </div>
@@ -404,7 +374,7 @@ function ExpenseForm({ onSubmit, onCancel }: ExpenseFormProps) {
                   value={form.watch("paymentMethod")}
                   onValueChange={(value) => form.setValue("paymentMethod", value)}
                 >
-                  <SelectTrigger className="mt-1.5">
+                  <SelectTrigger>
                     <SelectValue placeholder="Select payment method" />
                   </SelectTrigger>
                   <SelectContent>
@@ -445,14 +415,13 @@ function ExpenseForm({ onSubmit, onCancel }: ExpenseFormProps) {
             <Label htmlFor="description">Description (Optional)</Label>
             <Input
               id="description"
-              className="mt-1.5"
               {...form.register("description")}
             />
           </div>
         </form>
       </div>
 
-      <div className="sticky bottom-0 bg-white mt-4 pt-4 px-4 border-t flex justify-end gap-2">
+      <div className="sticky bottom-0 bg-white py-4 px-4 border-t flex justify-end gap-2">
         <Button type="button" variant="outline" onClick={onCancel}>
           Cancel
         </Button>
