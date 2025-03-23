@@ -8,7 +8,6 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-  DialogFooter,
 } from "@/components/ui/dialog";
 import {
   Select,
@@ -27,46 +26,6 @@ import { useToast } from "@/hooks/use-toast";
 import { Link } from "wouter";
 import { format } from "date-fns";
 import { useState } from "react";
-
-function ShareList({ shares, onRemove, totalAmount }: { shares: Share[]; onRemove: (index: number) => void; totalAmount: number }) {
-  const totalShares = shares.reduce((sum, share) => sum + Number(share.amount), 0);
-  const remaining = Math.max(0, totalAmount - totalShares);
-
-  return (
-    <div className="space-y-4">
-      <div className="flex justify-between text-sm">
-        <span className="font-medium">Expense Shares</span>
-        <span className={remaining === 0 ? "text-green-600" : "text-red-600"}>
-          Remaining: ₹{remaining.toFixed(2)}
-        </span>
-      </div>
-
-      <div className="space-y-2">
-        {shares.map((share, index) => (
-          <div key={index} className="flex justify-between items-center p-3 border rounded-md">
-            <div>
-              <div className="font-medium">
-                {share.payerType === "Other" ? share.payerName : share.payerType}
-              </div>
-              <div className="text-sm text-muted-foreground">
-                ₹{share.amount} via {share.paymentMethod}
-              </div>
-            </div>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              onClick={() => onRemove(index)}
-              className="text-destructive"
-            >
-              <MinusCircle className="h-4 w-4" />
-            </Button>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
 
 function ShareForm({ onSubmit }: { onSubmit: (share: Share) => void }) {
   const [formData, setFormData] = useState<Partial<Share>>({});
@@ -214,19 +173,10 @@ function ExpenseForm({ onSubmit, onCancel }: { onSubmit: (data: any) => Promise<
     setShares(prev => prev.filter((_, i) => i !== index));
   };
 
-  const handleSubmit = async (data: any) => {
+  const handleFormSubmit = form.handleSubmit(async (data) => {
     console.log("Form submitted with data:", data);
 
     try {
-      if (!data.category || !data.amount || !data.date) {
-        toast({
-          title: "Error",
-          description: "Please fill in all required fields",
-          variant: "destructive",
-        });
-        return;
-      }
-
       if (isSharedExpense) {
         if (shares.length === 0) {
           toast({
@@ -270,33 +220,10 @@ function ExpenseForm({ onSubmit, onCancel }: { onSubmit: (data: any) => Promise<
           return;
         }
 
-        if (data.paidBy === "Other" && !data.payerName) {
-          toast({
-            title: "Error",
-            description: "Please enter the name of the person who paid",
-            variant: "destructive",
-          });
-          return;
-        }
-
-        if (!data.paymentMethod) {
-          toast({
-            title: "Error",
-            description: "Please select a payment method",
-            variant: "destructive",
-          });
-          return;
-        }
-
         await onSubmit({
-          category: data.category,
+          ...data,
           amount: Number(data.amount),
-          date: data.date,
-          description: data.description || "",
-          isSharedExpense: false,
-          paidBy: data.paidBy,
-          payerName: data.payerName,
-          paymentMethod: data.paymentMethod,
+          isSharedExpense: false
         });
       }
     } catch (error) {
@@ -307,166 +234,229 @@ function ExpenseForm({ onSubmit, onCancel }: { onSubmit: (data: any) => Promise<
         variant: "destructive",
       });
     }
-  };
+  });
 
   return (
-    <div className="flex flex-col h-[calc(100vh-10rem)]">
-      <div className="flex-1 overflow-y-auto px-6 py-4">
-        <form id="expenseForm" className="space-y-4">
-          <div>
-            <Label htmlFor="date">Date</Label>
+    <form onSubmit={handleFormSubmit} className="flex flex-col h-[calc(100vh-10rem)]">
+      <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+        <div>
+          <Label htmlFor="date">Date</Label>
+          <Input
+            id="date"
+            type="date"
+            {...form.register("date")}
+          />
+        </div>
+
+        <div>
+          <Label htmlFor="category">Category</Label>
+          <Select
+            value={form.watch("category")}
+            onValueChange={(value) => form.setValue("category", value)}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Select category" />
+            </SelectTrigger>
+            <SelectContent>
+              {expenseCategories.map((category) => (
+                <SelectItem key={category} value={category}>
+                  {category}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div>
+          <Label htmlFor="amount">Amount</Label>
+          <div className="relative">
+            <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
             <Input
-              id="date"
-              type="date"
-              {...form.register("date")}
+              id="amount"
+              type="number"
+              step="0.01"
+              className="pl-10"
+              {...form.register("amount", { valueAsNumber: true })}
             />
           </div>
+        </div>
 
-          <div>
-            <Label htmlFor="category">Category</Label>
-            <Select
-              value={form.watch("category")}
-              onValueChange={(value) => form.setValue("category", value)}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select category" />
-              </SelectTrigger>
-              <SelectContent>
-                {expenseCategories.map((category) => (
-                  <SelectItem key={category} value={category}>
-                    {category}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+        <div className="flex items-center space-x-2">
+          <input
+            type="checkbox"
+            id="isShared"
+            checked={isSharedExpense}
+            onChange={(e) => {
+              setIsSharedExpense(e.target.checked);
+              if (!e.target.checked) {
+                setShares([]);
+              }
+            }}
+            className="rounded border-gray-300 text-primary focus:ring-primary"
+          />
+          <Label htmlFor="isShared">This is a shared expense</Label>
+        </div>
 
-          <div>
-            <Label htmlFor="amount">Amount</Label>
-            <div className="relative">
-              <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
-              <Input
-                id="amount"
-                type="number"
-                step="0.01"
-                className="pl-10"
-                {...form.register("amount", { valueAsNumber: true })}
-              />
+        {!isSharedExpense ? (
+          <>
+            <div>
+              <Label htmlFor="paidBy">Paid By</Label>
+              <Select
+                value={form.watch("paidBy")}
+                onValueChange={(value) => {
+                  form.setValue("paidBy", value);
+                  if (value !== "Other") {
+                    form.setValue("payerName", "");
+                  }
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select who paid" />
+                </SelectTrigger>
+                <SelectContent>
+                  {paymentSources.map((source) => (
+                    <SelectItem key={source} value={source}>
+                      {source}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
-          </div>
 
-          <div className="flex items-center space-x-2">
-            <input
-              type="checkbox"
-              id="isShared"
-              checked={isSharedExpense}
-              onChange={(e) => {
-                setIsSharedExpense(e.target.checked);
-                if (!e.target.checked) {
-                  setShares([]);
-                }
-              }}
-              className="rounded border-gray-300 text-primary focus:ring-primary"
-            />
-            <Label htmlFor="isShared">This is a shared expense</Label>
-          </div>
-
-          {!isSharedExpense ? (
-            <>
+            {form.watch("paidBy") === "Other" && (
               <div>
-                <Label htmlFor="paidBy">Paid By</Label>
-                <Select
-                  value={form.watch("paidBy")}
-                  onValueChange={(value) => {
-                    form.setValue("paidBy", value);
-                    if (value !== "Other") {
-                      form.setValue("payerName", "");
-                    }
-                  }}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select who paid" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {paymentSources.map((source) => (
-                      <SelectItem key={source} value={source}>
-                        {source}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Label htmlFor="payerName">Person Name</Label>
+                <Input
+                  id="payerName"
+                  {...form.register("payerName")}
+                />
               </div>
+            )}
 
-              {form.watch("paidBy") === "Other" && (
-                <div>
-                  <Label htmlFor="payerName">Person Name</Label>
-                  <Input
-                    id="payerName"
-                    {...form.register("payerName")}
-                  />
+            <div>
+              <Label htmlFor="paymentMethod">Payment Method</Label>
+              <Select
+                value={form.watch("paymentMethod")}
+                onValueChange={(value) => form.setValue("paymentMethod", value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select method" />
+                </SelectTrigger>
+                <SelectContent>
+                  {paymentMethods.map((method) => (
+                    <SelectItem key={method} value={method}>
+                      {method}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </>
+        ) : (
+          <div className="space-y-4 border rounded-lg p-4">
+            <div className="flex justify-between text-sm">
+              <span className="font-medium">Expense Shares</span>
+              <span className={shares.reduce((sum, share) => sum + Number(share.amount), 0) === Number(form.watch("amount")) ? "text-green-600" : "text-red-600"}>
+                Remaining: ₹{Math.max(0, Number(form.watch("amount") || 0) - shares.reduce((sum, share) => sum + Number(share.amount), 0)).toFixed(2)}
+              </span>
+            </div>
+
+            <div className="space-y-2">
+              {shares.map((share, index) => (
+                <div key={index} className="flex justify-between items-center p-3 border rounded-md">
+                  <div>
+                    <div className="font-medium">
+                      {share.payerType === "Other" ? share.payerName : share.payerType}
+                    </div>
+                    <div className="text-sm text-muted-foreground">
+                      ₹{share.amount} via {share.paymentMethod}
+                    </div>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => removeShare(index)}
+                    className="text-destructive"
+                  >
+                    <MinusCircle className="h-4 w-4" />
+                  </Button>
                 </div>
-              )}
-
-              <div>
-                <Label htmlFor="paymentMethod">Payment Method</Label>
-                <Select
-                  value={form.watch("paymentMethod")}
-                  onValueChange={(value) => form.setValue("paymentMethod", value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select method" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {paymentMethods.map((method) => (
-                      <SelectItem key={method} value={method}>
-                        {method}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </>
-          ) : (
-            <div className="space-y-4 border rounded-lg p-4">
-              <ShareList
-                shares={shares}
-                onRemove={removeShare}
-                totalAmount={Number(form.watch("amount") || 0)}
-              />
-
-              {isAddingShare ? (
-                <ShareForm onSubmit={handleAddShare} />
-              ) : (
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="w-full"
-                  onClick={() => setIsAddingShare(true)}
-                >
-                  <PlusCircle className="h-4 w-4 mr-2" />
-                  Add Share
-                </Button>
-              )}
+              ))}
             </div>
-          )}
 
-          <div>
-            <Label htmlFor="description">Description (Optional)</Label>
-            <Input
-              id="description"
-              {...form.register("description")}
-            />
+            {isAddingShare ? (
+              <ShareForm onSubmit={handleAddShare} />
+            ) : (
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full"
+                onClick={() => setIsAddingShare(true)}
+              >
+                <PlusCircle className="h-4 w-4 mr-2" />
+                Add Share
+              </Button>
+            )}
           </div>
-        </form>
+        )}
+
+        <div>
+          <Label htmlFor="description">Description (Optional)</Label>
+          <Input
+            id="description"
+            {...form.register("description")}
+          />
+        </div>
       </div>
 
       <div className="px-6 py-4 border-t flex justify-end gap-2">
         <Button type="button" variant="outline" onClick={onCancel}>
           Cancel
         </Button>
-        <Button onClick={form.handleSubmit(handleSubmit)}>
+        <Button type="submit">
           Add Expense
         </Button>
+      </div>
+    </form>
+  );
+}
+
+function ShareList({ shares, onRemove, totalAmount }: { shares: Share[]; onRemove: (index: number) => void; totalAmount: number }) {
+  const totalShares = shares.reduce((sum, share) => sum + Number(share.amount), 0);
+  const remaining = Math.max(0, totalAmount - totalShares);
+
+  return (
+    <div className="space-y-4">
+      <div className="flex justify-between text-sm">
+        <span className="font-medium">Expense Shares</span>
+        <span className={remaining === 0 ? "text-green-600" : "text-red-600"}>
+          Remaining: ₹{remaining.toFixed(2)}
+        </span>
+      </div>
+
+      <div className="space-y-2">
+        {shares.map((share, index) => (
+          <div key={index} className="flex justify-between items-center p-3 border rounded-md">
+            <div>
+              <div className="font-medium">
+                {share.payerType === "Other" ? share.payerName : share.payerType}
+              </div>
+              <div className="text-sm text-muted-foreground">
+                ₹{share.amount} via {share.paymentMethod}
+              </div>
+            </div>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={() => onRemove(index)}
+              className="text-destructive"
+            >
+              <MinusCircle className="h-4 w-4" />
+            </Button>
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -542,7 +532,6 @@ function ExpenseCard({ expense }: { expense: Expense }) {
 export default function Expenses() {
   const { toast } = useToast();
   const [isOpen, setIsOpen] = useState(false);
-  const [importDialogOpen, setImportDialogOpen] = useState(false);
 
   const { data: expenses, isLoading } = useQuery<Expense[]>({
     queryKey: ["/api/business/expenses"],
