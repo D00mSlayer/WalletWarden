@@ -11,10 +11,7 @@ export function DialogContentWrapper({
   ...props
 }: DialogContentWrapperProps) {
   return (
-    <ScrollArea 
-      className={cn("flex-1 overflow-auto", className)} 
-      {...props}
-    >
+    <ScrollArea className={cn("flex-1", className)} {...props}>
       <div className="px-6 py-4">
         {children}
       </div>
