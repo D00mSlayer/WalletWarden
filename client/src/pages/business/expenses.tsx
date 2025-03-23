@@ -221,7 +221,19 @@ function ExpenseForm({ onSubmit, onCancel }: ExpenseFormProps) {
   };
 
   const onFormSubmit = async (formData: any) => {
+    console.log("Form submitted with data:", formData);
+
     try {
+      // Basic validation
+      if (!formData.category || !formData.amount || !formData.date) {
+        toast({
+          title: "Error",
+          description: "Please fill in all required fields",
+          variant: "destructive",
+        });
+        return;
+      }
+
       if (isSharedExpense) {
         if (shares.length === 0) {
           toast({
@@ -244,18 +256,57 @@ function ExpenseForm({ onSubmit, onCancel }: ExpenseFormProps) {
           return;
         }
 
-        await onSubmit({
-          ...formData,
+        const submissionData = {
+          category: formData.category,
           amount: formAmount,
+          date: formData.date,
+          description: formData.description || "",
           isSharedExpense: true,
-          shares: shares
-        });
+          shares: shares.map(share => ({
+            ...share,
+            amount: Number(share.amount)
+          }))
+        };
+
+        console.log("Submitting shared expense:", submissionData);
+        await onSubmit(submissionData);
       } else {
-        await onSubmit({
+        if (!formData.paidBy) {
+          toast({
+            title: "Error",
+            description: "Please select who paid the expense",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        if (formData.paidBy === "Other" && !formData.payerName) {
+          toast({
+            title: "Error",
+            description: "Please enter the name of the person who paid",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        if (!formData.paymentMethod) {
+          toast({
+            title: "Error",
+            description: "Please select a payment method",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        const submissionData = {
           ...formData,
           amount: Number(formData.amount),
+          description: formData.description || "",
           isSharedExpense: false
-        });
+        };
+
+        console.log("Submitting regular expense:", submissionData);
+        await onSubmit(submissionData);
       }
     } catch (error) {
       console.error('Form submission error:', error);
@@ -624,11 +675,14 @@ export default function Expenses() {
 
   const addExpenseMutation = useMutation({
     mutationFn: async (data: any) => {
+      console.log("Mutation called with data:", data);
       const res = await apiRequest("POST", "/api/business/expenses", data);
+
       if (!res.ok) {
         const errorData = await res.json();
         throw new Error(errorData.message || "Failed to add expense");
       }
+
       return res.json();
     },
     onSuccess: () => {
@@ -637,6 +691,7 @@ export default function Expenses() {
       setIsOpen(false);
     },
     onError: (error: Error) => {
+      console.error("Mutation error:", error);
       toast({
         title: "Failed to add expense",
         description: error.message,
