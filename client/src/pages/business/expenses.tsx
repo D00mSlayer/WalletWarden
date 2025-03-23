@@ -223,6 +223,7 @@ function ExpenseForm({ onSubmit, onCancel }: ExpenseFormProps) {
   const onFormSubmit = async (formData: any) => {
     try {
       if (isSharedExpense) {
+        // Validate shared expense
         if (shares.length === 0) {
           toast({
             title: "Error",
@@ -244,6 +245,7 @@ function ExpenseForm({ onSubmit, onCancel }: ExpenseFormProps) {
           return;
         }
 
+        // Submit shared expense
         await onSubmit({
           ...formData,
           amount: formAmount,
@@ -251,6 +253,35 @@ function ExpenseForm({ onSubmit, onCancel }: ExpenseFormProps) {
           shares: shares
         });
       } else {
+        // Validate regular expense
+        if (!formData.paidBy) {
+          toast({
+            title: "Error",
+            description: "Please select who paid the expense",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        if (formData.paidBy === "Other" && !formData.payerName) {
+          toast({
+            title: "Error",
+            description: "Please enter the name of the person who paid",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        if (!formData.paymentMethod) {
+          toast({
+            title: "Error",
+            description: "Please select a payment method",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        // Submit regular expense
         await onSubmit({
           ...formData,
           amount: Number(formData.amount),
@@ -421,7 +452,7 @@ function ExpenseForm({ onSubmit, onCancel }: ExpenseFormProps) {
         </form>
       </div>
 
-      <div className="mt-4 pt-4 border-t flex justify-end gap-2">
+      <div className="sticky bottom-0 bg-white mt-4 pt-4 px-4 border-t flex justify-end gap-2">
         <Button type="button" variant="outline" onClick={onCancel}>
           Cancel
         </Button>
