@@ -25,7 +25,93 @@ import { Loader2, PlusCircle, MinusCircle, IndianRupee } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "wouter";
 import { format } from "date-fns";
-import { useState } from "react";
+import { useState, useRef } from "react";
+import { Upload } from "lucide-react";
+import Papa from "papaparse";
+
+function ImportCSV({ onImport }: { onImport: (data: any[]) => Promise<void> }) {
+  const [isLoading, setIsLoading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const { toast } = useToast();
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    setIsLoading(true);
+    
+    try {
+      Papa.parse(file, {
+        header: true,
+        skipEmptyLines: true,
+        complete: async (results) => {
+          console.log("Parsed CSV:", results.data);
+          
+          if (results.data.length === 0) {
+            toast({
+              title: "Error",
+              description: "No valid data found in CSV file",
+              variant: "destructive",
+            });
+            return;
+          }
+          
+          try {
+            await onImport(results.data);
+            toast({
+              title: "Success",
+              description: `Imported ${results.data.length} expense(s)`,
+            });
+            if (fileInputRef.current) {
+              fileInputRef.current.value = "";
+            }
+          } catch (error) {
+            console.error("Import error:", error);
+            toast({
+              title: "Import failed",
+              description: error instanceof Error ? error.message : "Unknown error",
+              variant: "destructive",
+            });
+          }
+        },
+        error: (error) => {
+          console.error("CSV parsing error:", error);
+          toast({
+            title: "Error",
+            description: "Failed to parse CSV file",
+            variant: "destructive",
+          });
+        },
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <div className="relative">
+      <input
+        type="file"
+        accept=".csv"
+        onChange={handleFileChange}
+        className="hidden"
+        ref={fileInputRef}
+      />
+      <Button
+        variant="outline"
+        onClick={() => fileInputRef.current?.click()}
+        disabled={isLoading}
+      >
+        {isLoading ? (
+          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+        ) : (
+          <Upload className="h-4 w-4 mr-2" />
+        )}
+        Import Expenses
+      </Button>
+    </div>
+  );
+}
 
 function ShareForm({ onSubmit }: { onSubmit: (share: Share) => void }) {
   const [formData, setFormData] = useState<Partial<Share>>({});
@@ -62,7 +148,7 @@ function ShareForm({ onSubmit }: { onSubmit: (share: Share) => void }) {
         <Label>Payer</Label>
         <Select
           value={formData.payerType}
-          onValueChange={(value) => {
+          onValueChange={(value: typeof paymentSources[number]) => {
             setFormData(prev => ({
               ...prev,
               payerType: value,
@@ -113,7 +199,7 @@ function ShareForm({ onSubmit }: { onSubmit: (share: Share) => void }) {
         <Label>Payment Method</Label>
         <Select
           value={formData.paymentMethod}
-          onValueChange={(value) => setFormData(prev => ({ ...prev, paymentMethod: value }))}
+          onValueChange={(value: typeof paymentMethods[number]) => setFormData(prev => ({ ...prev, paymentMethod: value }))}
         >
           <SelectTrigger>
             <SelectValue placeholder="Select method" />
@@ -410,7 +496,7 @@ function ExpenseForm({ onSubmit, onCancel }: { onSubmit: (data: any) => Promise<
         </div>
       </div>
 
-      <div className="px-6 py-4 border-t flex justify-end gap-2">
+      <div className="sticky bottom-0 px-6 py-4 border-t flex justify-end gap-2 bg-white">
         <Button type="button" variant="outline" onClick={onCancel}>
           Cancel
         </Button>
@@ -501,7 +587,7 @@ function ExpenseCard({ expense }: { expense: Expense }) {
                 <span className="text-sm font-medium">Shared Expense</span>
               </div>
               <div className="space-y-2">
-                {expense.shares?.map((share, index) => (
+                {expense.shares?.map((share: any, index) => (
                   <div key={index} className="flex justify-between text-sm items-center">
                     <div>
                       <span>{share.payerType === "Other" ? share.payerName : share.payerType}</span>
@@ -581,13 +667,52 @@ export default function Expenses() {
             <h1 className="text-2xl font-bold text-primary">Business Expenses</h1>
           </div>
 
+          <div className="flex space-x-2">
+            <Button onClick={() => setIsOpen(true)}>
+              <PlusCircle className="h-4 w-4 mr-2" />
+              Add Expense
+            </Button>
+            <ImportCSV onImport={async (csvData) => {
+              const formattedData = csvData.map((row: any) => {
+                // Expecting CSV with: date, category, amount, description, isSharedExpense, paidBy, paymentMethod, payerName (optional)
+                return {
+                  date: row.date || new Date().toISOString().split('T')[0],
+                  category: row.category || "Other",
+                  amount: Number(row.amount) || 0,
+                  description: row.description || "",
+                  isSharedExpense: row.isSharedExpense === "true" || false,
+                  paidBy: row.paidBy || "Business",
+                  paymentMethod: row.paymentMethod || "Cash",
+                  payerName: row.payerName || "",
+                  shares: row.shares ? JSON.parse(row.shares) : []
+                };
+              });
+
+              console.log("Formatted import data:", formattedData);
+              
+              const results = await Promise.allSettled(
+                formattedData.map(data => addExpenseMutation.mutateAsync(data))
+              );
+              
+              const successful = results.filter(r => r.status === "fulfilled").length;
+              const failed = results.filter(r => r.status === "rejected").length;
+              
+              if (failed > 0) {
+                toast({
+                  title: `Imported ${successful} of ${formattedData.length} expenses`,
+                  description: `${failed} expenses failed to import`,
+                  variant: "destructive",
+                });
+              } else {
+                toast({
+                  title: "Success",
+                  description: `All ${successful} expenses imported successfully`,
+                });
+              }
+            }} />
+          </div>
+          
           <Dialog open={isOpen} onOpenChange={setIsOpen}>
-            <DialogTrigger asChild>
-              <Button>
-                <PlusCircle className="h-4 w-4 mr-2" />
-                Add Expense
-              </Button>
-            </DialogTrigger>
             <DialogContent className="max-w-lg p-0">
               <DialogHeader className="px-6 py-4 border-b">
                 <DialogTitle>Add Expense</DialogTitle>
