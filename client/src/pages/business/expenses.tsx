@@ -371,7 +371,7 @@ function ExpenseForm({ onSubmit, onCancel }: { onSubmit: (data: any) => Promise<
   };
 
   return (
-    <form onSubmit={handleFormSubmit} className="flex flex-col max-h-[80vh]">
+    <form onSubmit={handleFormSubmit} className="flex flex-col h-full">
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {/* Basic Expense Info */}
         <div className="space-y-4">
@@ -885,14 +885,16 @@ export default function Expenses() {
           </div>
           
           <Dialog open={isOpen} onOpenChange={setIsOpen}>
-            <DialogContent className="max-w-md w-[95%] p-0 max-h-[90vh] flex flex-col">
+            <DialogContent className="max-w-md w-[95%] p-0 h-[85vh] flex flex-col overflow-hidden">
               <DialogHeader className="px-4 py-3 border-b">
                 <DialogTitle>Add Expense</DialogTitle>
               </DialogHeader>
-              <ExpenseForm
-                onSubmit={(data) => addExpenseMutation.mutateAsync(data)}
-                onCancel={() => setIsOpen(false)}
-              />
+              <div className="flex-1 flex flex-col overflow-hidden">
+                <ExpenseForm
+                  onSubmit={(data) => addExpenseMutation.mutateAsync(data)}
+                  onCancel={() => setIsOpen(false)}
+                />
+              </div>
             </DialogContent>
           </Dialog>
         </div>
