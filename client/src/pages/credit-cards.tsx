@@ -23,7 +23,6 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Loader2, PlusCircle, Pencil, Trash2, X } from "lucide-react";
 import { SiVisa, SiMastercard, SiAmericanexpress } from "react-icons/si";
-import { BsCreditCard2Front } from "react-icons/bs"; // Better icon for Rupay
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "wouter";
 import { useState, useEffect, useRef } from "react";
@@ -39,6 +38,10 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
+import * as z from "zod"; // Import zod for schema inference
+
+// Infer type from schema
+type InsertCreditCard = z.infer<typeof insertCreditCardSchema>;
 
 function formatExpiryDate(value: string) {
   const cleaned = value.replace(/\D/g, "");
@@ -332,13 +335,20 @@ function CardForm({ onSubmit, defaultValues }: any) {
 function getCardIcon(network: string) {
   switch (network) {
     case "Visa":
-      return <SiVisa className="h-8 w-8" />;
+      return <SiVisa className="h-8 w-8 text-white" />;
     case "Mastercard":
-      return <SiMastercard className="h-8 w-8" />;
+      return <SiMastercard className="h-8 w-8 text-white" />;
     case "American Express":
-      return <SiAmericanexpress className="h-8 w-8" />;
+      return <SiAmericanexpress className="h-8 w-8 text-white" />;
     case "Rupay":
-      return <BsCreditCard2Front className="h-8 w-8" />;
+      // Use img tag for Rupay, assuming the file is in public/assets/icons/rupay.png
+      return (
+        <img
+          src="/assets/icons/rupay.png"
+          alt="RuPay"
+          className="h-8 w-8 object-contain" // Use object-contain to preserve aspect ratio
+        />
+      );
     default:
       return null;
   }
@@ -384,73 +394,106 @@ function CreditCardItem({ card, onUpdate, onDelete }: any) {
 
   const copyToClipboard = async (text: string, type: string) => {
     try {
-      await navigator.clipboard.writeText(text);
-      toast({
-        title: `${type} copied`,
-        description: `The ${type.toLowerCase()} has been copied to your clipboard`,
-      });
+      // Try using the modern Clipboard API first
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(text);
+        toast({
+          title: `${type} copied`,
+          description: `The ${type.toLowerCase()} has been copied to your clipboard`,
+        });
+        return;
+      }
+
+      // Fallback for older browsers or non-secure contexts
+      const textArea = document.createElement('textarea');
+      textArea.value = text;
+      textArea.style.position = 'fixed';
+      textArea.style.left = '-999999px';
+      textArea.style.top = '-999999px';
+      document.body.appendChild(textArea);
+      textArea.focus();
+      textArea.select();
+      
+      try {
+        document.execCommand('copy');
+        toast({
+          title: `${type} copied`,
+          description: `The ${type.toLowerCase()} has been copied to your clipboard`,
+        });
+      } catch (err) {
+        toast({
+          title: "Failed to copy",
+          description: `Please copy the ${type.toLowerCase()} manually`,
+          variant: "destructive",
+        });
+      } finally {
+        document.body.removeChild(textArea);
+      }
     } catch (err) {
       toast({
         title: "Failed to copy",
-        description: `Could not copy the ${type.toLowerCase()} to clipboard`,
+        description: `Please copy the ${type.toLowerCase()} manually`,
         variant: "destructive",
       });
     }
   };
 
   return (
-    <Card className={`relative overflow-hidden bg-gradient-to-br ${gradient} text-white`}>
-      <CardHeader className="flex flex-row items-start justify-between pb-8">
-        <div>
-          <CardTitle className="text-lg font-normal mb-1">{card.cardName}</CardTitle>
-          <div className="text-xs opacity-75">{card.issuer}</div>
-        </div>
-        <div className="flex gap-2">
-          <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
-            <DialogTrigger asChild>
-              <Button variant="ghost" size="icon" className="text-white hover:text-white/80">
-                <Pencil className="h-4 w-4" />
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Edit Credit Card</DialogTitle>
-              </DialogHeader>
-              <CardForm onSubmit={handleUpdate} defaultValues={card} />
-            </DialogContent>
-          </Dialog>
+    <div className="relative">
+      <Card className={`relative overflow-hidden bg-gradient-to-br ${gradient} text-white aspect-[1.586/1] max-w-[400px] mx-auto rounded-2xl shadow-lg transition-transform hover:scale-[1.02]`}>
+        <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent" />
+        
+        <div className="p-6 h-full flex flex-col relative z-10">
+          <div className="flex justify-between items-start mb-6">
+            <div>
+              <h3 className="text-lg font-medium tracking-wide">{card.cardName}</h3>
+              <p className="text-sm opacity-75">{card.issuer}</p>
+            </div>
+            <div className="flex gap-2">
+              <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="ghost" size="icon" className="text-white hover:text-white/80 relative z-20">
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Edit Credit Card</DialogTitle>
+                  </DialogHeader>
+                  <CardForm onSubmit={handleUpdate} defaultValues={card} />
+                </DialogContent>
+              </Dialog>
 
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="text-white hover:text-white/80"
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Delete Credit Card</AlertDialogTitle>
-                <AlertDialogDescription>
-                  Are you sure you want to delete this credit card? This action cannot be undone.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={onDelete}>Delete</AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-        </div>
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <button
-                className="text-xl font-mono focus:outline-none transition-opacity hover:opacity-80"
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="text-white hover:text-white/80 relative z-20"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Delete Credit Card</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Are you sure you want to delete this credit card? This action cannot be undone.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={onDelete}>Delete</AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
+          </div>
+
+          <div className="flex-1 flex flex-col justify-between">
+            <div className="mb-6">
+              <div
+                className="text-xl font-mono tracking-wider focus:outline-none transition-opacity hover:opacity-80 w-full text-left cursor-pointer relative z-20"
                 onClick={() => setShowFullNumber(!showFullNumber)}
                 onContextMenu={(e) => {
                   e.preventDefault();
@@ -459,14 +502,14 @@ function CreditCardItem({ card, onUpdate, onDelete }: any) {
                 title={showFullNumber ? "Press and hold to copy, click to hide" : "Click to view full number"}
               >
                 {formatCardNumber(card.cardNumber, card.cardNetwork, showFullNumber)}
-              </button>
-              {getCardIcon(card.cardNetwork)}
+              </div>
             </div>
-            <div className="flex items-center gap-4">
-              <div className="text-sm">
-                <div className="opacity-75 text-xs mb-1">CVV</div>
-                <button
-                  className="font-mono focus:outline-none transition-opacity hover:opacity-80"
+
+            <div className="flex items-center justify-between">
+              <div className="space-y-1">
+                <div className="text-xs opacity-75">CVV</div>
+                <div
+                  className="font-mono tracking-wider focus:outline-none transition-opacity hover:opacity-80 cursor-pointer relative z-20"
                   onClick={() => setShowCVV(!showCVV)}
                   onContextMenu={(e) => {
                     e.preventDefault();
@@ -475,17 +518,20 @@ function CreditCardItem({ card, onUpdate, onDelete }: any) {
                   title={showCVV ? "Press and hold to copy, click to hide" : "Click to view CVV"}
                 >
                   {showCVV ? card.cvv : "•••"}
-                </button>
+                </div>
               </div>
-              <div className="text-sm">
-                <div className="opacity-75 text-xs mb-1">Expires</div>
-                {card.expiryDate}
+              <div className="space-y-1">
+                <div className="text-xs opacity-75">Expires</div>
+                <div className="font-mono tracking-wider">{card.expiryDate}</div>
+              </div>
+              <div className="ml-8">
+                {getCardIcon(card.cardNetwork)}
               </div>
             </div>
           </div>
         </div>
-      </CardContent>
-    </Card>
+      </Card>
+    </div>
   );
 }
 
@@ -497,7 +543,7 @@ export default function CreditCards() {
   });
 
   const addCardMutation = useMutation({
-    mutationFn: async (data: any) => {
+    mutationFn: async (data: InsertCreditCard) => {
       const res = await apiRequest("POST", "/api/credit-cards", data);
       return res.json();
     },
@@ -509,7 +555,7 @@ export default function CreditCards() {
   });
 
   const updateCardMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: number; data: any }) => {
+    mutationFn: async ({ id, data }: { id: number; data: InsertCreditCard }) => {
       const res = await apiRequest("PATCH", `/api/credit-cards/${id}`, data);
       return res.json();
     },
@@ -552,7 +598,7 @@ export default function CreditCards() {
               <DialogHeader>
                 <DialogTitle>Add Credit Card</DialogTitle>
               </DialogHeader>
-              <CardForm onSubmit={(data) => addCardMutation.mutate(data)} />
+              <CardForm onSubmit={(data: InsertCreditCard) => addCardMutation.mutate(data)} />
             </DialogContent>
           </Dialog>
         </div>
@@ -575,7 +621,7 @@ export default function CreditCards() {
               <CreditCardItem
                 key={card.id}
                 card={card}
-                onUpdate={(data) => updateCardMutation.mutate({ id: card.id, data })}
+                onUpdate={(data: InsertCreditCard) => updateCardMutation.mutate({ id: card.id, data })}
                 onDelete={() => deleteCardMutation.mutate(card.id)}
               />
             ))}
