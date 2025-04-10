@@ -262,10 +262,7 @@ function ExpenseForm({ onSubmit, onCancel }: { onSubmit: (data: ExpenseFormData)
     e.preventDefault(); // Prevent form submission
     e.stopPropagation(); // Stop event bubbling
     
-    console.log("Current shares before update:", shares);
-    
     const shareFormValues = shareForm.getValues();
-    console.log("Share form values:", shareFormValues);
     
     if (!shareFormValues.amount || !shareFormValues.paidBy || !shareFormValues.paymentMethod) {
       toast({
@@ -291,14 +288,8 @@ function ExpenseForm({ onSubmit, onCancel }: { onSubmit: (data: ExpenseFormData)
       payerName: shareFormValues.payerName,
       paymentMethod: shareFormValues.paymentMethod
     };
-
-    console.log("Adding new share:", newShare);
     
-    setShares(prevShares => {
-      const updatedShares = [...prevShares, newShare];
-      console.log("Updated shares array:", updatedShares);
-      return updatedShares;
-    });
+    setShares(prevShares => [...prevShares, newShare]);
 
     // Reset share form
     shareForm.reset();
@@ -311,10 +302,8 @@ function ExpenseForm({ onSubmit, onCancel }: { onSubmit: (data: ExpenseFormData)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log("Form submission started");
     
     const formValues = form.getValues();
-    console.log("Form values:", formValues);
     
     // Basic validation
     if (!formValues.category) {
@@ -350,7 +339,6 @@ function ExpenseForm({ onSubmit, onCancel }: { onSubmit: (data: ExpenseFormData)
         }))
       };
 
-      console.log("Submitting shared expense:", expenseData);
       await onSubmit(expenseData);
     } else {
       // Individual expense validation
@@ -369,7 +357,6 @@ function ExpenseForm({ onSubmit, onCancel }: { onSubmit: (data: ExpenseFormData)
         shares: []
       };
 
-      console.log("Submitting individual expense:", expenseData);
       await onSubmit(expenseData);
     }
   };
@@ -773,35 +760,25 @@ export default function Expenses() {
 
   const addExpenseMutation = useMutation({
     mutationFn: async (data: ExpenseFormData) => {
-      console.log("Mutation started with data:", data);
       try {
-        console.log("Making API request to /api/business/expenses");
         const res = await apiRequest("POST", "/api/business/expenses", data);
-        console.log("API response status:", res.status);
-        console.log("API response headers:", res.headers);
 
         if (!res.ok) {
           const errorData = await res.json();
-          console.error("API error response:", errorData);
           throw new Error(errorData.message || "Failed to add expense");
         }
 
-        const responseData = await res.json();
-        console.log("API success response:", responseData);
-        return responseData;
+        return await res.json();
       } catch (error) {
-        console.error("API request error:", error);
         throw error;
       }
     },
     onSuccess: (data) => {
-      console.log("Mutation successful:", data);
       queryClient.invalidateQueries({ queryKey: ["/api/business/expenses"] });
       toast({ title: "Expense added successfully" });
       setIsOpen(false);
     },
     onError: (error: Error) => {
-      console.error("Mutation error:", error);
       toast({
         title: "Failed to add expense",
         description: error.message,
