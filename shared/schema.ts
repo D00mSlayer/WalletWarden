@@ -248,8 +248,7 @@ export const insertBankAccountSchema = z.object({
     .max(18, "Account number must not exceed 18 digits"),
   customerId: z.string().optional(),
   ifscCode: z.string()
-    .min(1, "IFSC code is required")
-    .regex(/^[A-Z]{4}0[A-Z0-9]{6}$/, "Invalid IFSC code format"),
+    .min(1, "IFSC code is required"),
   netBankingPassword: z.string().optional(),
   mpin: z.string()
     .regex(/^\d*$/, "mPIN must contain only digits")

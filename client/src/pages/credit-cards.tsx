@@ -346,7 +346,7 @@ function getCardIcon(network: string) {
         <img
           src="/assets/icons/rupay.png"
           alt="RuPay"
-          className="h-8 w-8 object-contain" // Use object-contain to preserve aspect ratio
+          className="h-12 w-12 object-contain"
         />
       );
     default:
@@ -524,7 +524,7 @@ function CreditCardItem({ card, onUpdate, onDelete }: any) {
                 <div className="text-xs opacity-75">Expires</div>
                 <div className="font-mono tracking-wider">{card.expiryDate}</div>
               </div>
-              <div className="ml-8">
+              <div className="ml-8 flex items-center justify-center" style={{ minWidth: "48px", height: "48px" }}>
                 {getCardIcon(card.cardNetwork)}
               </div>
             </div>

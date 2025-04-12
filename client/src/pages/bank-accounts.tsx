@@ -16,12 +16,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useForm } from "react-hook-form";
+import { useForm, SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { insertBankAccountSchema, bankIssuers, accountTypes, type BankAccount } from "@shared/schema";
+import { insertBankAccountSchema, bankIssuers, accountTypes, type BankAccount, type InsertBankAccount } from "@shared/schema";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Loader2, PlusCircle, Pencil, Trash2, Copy, X } from "lucide-react";
+import { Loader2, PlusCircle, Pencil, Trash2, Copy, X, Eye, EyeOff, Building2, CreditCard, User2, Tag, KeyRound, LockKeyhole } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "wouter";
 import { useState, useEffect } from "react";
@@ -37,6 +37,19 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
+import * as z from "zod";
+
+// Define a type for the form values that's compatible with both the schema and BankAccount
+type BankAccountFormData = {
+  bankName: typeof bankIssuers[number];
+  accountType: typeof accountTypes[number];
+  accountNumber: string;
+  customerId: string;
+  ifscCode: string;
+  netBankingPassword: string;
+  mpin: string;
+  tags: string[];
+};
 
 function formatAccountNumber(number: string, showFull: boolean = false): string {
   if (!showFull) {
@@ -45,13 +58,87 @@ function formatAccountNumber(number: string, showFull: boolean = false): string 
   return number;
 }
 
-function AccountForm({ onSubmit, defaultValues }: any) {
-  const form = useForm({
+interface AccountFormProps {
+  onSubmit: SubmitHandler<BankAccountFormData>;
+  defaultValues?: Partial<BankAccount>;
+}
+
+// Add a utility function to handle mobile-friendly copying/sharing
+const copyToClipboard = async (text: string, fallbackTitle: string, toast: any) => {
+  try {
+    // Use the document.execCommand approach which works more reliably across browsers
+    const textArea = document.createElement('textarea');
+    textArea.value = text;
+    
+    // Make the textarea out of viewport
+    textArea.style.position = 'fixed';
+    textArea.style.left = '-999999px';
+    textArea.style.top = '-999999px';
+    document.body.appendChild(textArea);
+    
+    textArea.focus();
+    textArea.select();
+    
+    const successful = document.execCommand('copy');
+    document.body.removeChild(textArea);
+    
+    if (successful) {
+      toast({
+        title: "Copied to clipboard",
+        description: `${fallbackTitle} has been copied to your clipboard`,
+      });
+      return true;
+    } else {
+      // Try the navigator.clipboard API as fallback
+      await navigator.clipboard.writeText(text);
+      toast({
+        title: "Copied to clipboard",
+        description: `${fallbackTitle} has been copied to your clipboard`,
+      });
+      return true;
+    }
+  } catch (err) {
+    // Neither approach worked, try share API as final fallback on mobile
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          text: text,
+        });
+        toast({
+          title: "Shared successfully",
+          description: `${fallbackTitle} has been shared`,
+        });
+        return true;
+      } catch (error) {
+        // User cancelled or share API failed
+        const shareError = error as { name?: string };
+        if (shareError.name !== 'AbortError') {
+          toast({
+            title: "Couldn't share",
+            description: "Sharing was cancelled or failed",
+            variant: "destructive",
+          });
+        }
+        return false;
+      }
+    } else {
+      toast({
+        title: "Copy not supported",
+        description: "Your browser doesn't support copying to clipboard",
+        variant: "destructive",
+      });
+      return false;
+    }
+  }
+};
+
+function AccountForm({ onSubmit, defaultValues }: AccountFormProps) {
+  const form = useForm<BankAccountFormData>({
     resolver: zodResolver(insertBankAccountSchema),
     defaultValues: {
-      bankName: defaultValues?.bankName || "",
+      bankName: defaultValues?.bankName as typeof bankIssuers[number],
+      accountType: defaultValues?.accountType as typeof accountTypes[number],
       accountNumber: defaultValues?.accountNumber || "",
-      accountType: defaultValues?.accountType || "",
       customerId: defaultValues?.customerId || "",
       ifscCode: defaultValues?.ifscCode || "",
       netBankingPassword: defaultValues?.netBankingPassword || "",
@@ -94,7 +181,9 @@ function AccountForm({ onSubmit, defaultValues }: any) {
         <Label htmlFor="bankName">Bank Name</Label>
         <Select
           value={form.watch("bankName")}
-          onValueChange={(value) => form.setValue("bankName", value, { shouldValidate: true })}
+          onValueChange={(value: typeof bankIssuers[number]) => 
+            form.setValue("bankName", value, { shouldValidate: true })
+          }
         >
           <SelectTrigger>
             <SelectValue placeholder="Select bank" />
@@ -116,7 +205,9 @@ function AccountForm({ onSubmit, defaultValues }: any) {
         <Label htmlFor="accountType">Account Type</Label>
         <Select
           value={form.watch("accountType")}
-          onValueChange={(value) => form.setValue("accountType", value, { shouldValidate: true })}
+          onValueChange={(value: typeof accountTypes[number]) => 
+            form.setValue("accountType", value, { shouldValidate: true })
+          }
         >
           <SelectTrigger>
             <SelectValue placeholder="Select account type" />
@@ -168,6 +259,7 @@ function AccountForm({ onSubmit, defaultValues }: any) {
           {...form.register("ifscCode")}
           onChange={handleIfscChange}
           placeholder="e.g., HDFC0000123"
+          autoCapitalize="characters"
         />
         {form.formState.errors.ifscCode && (
           <p className="text-sm text-red-500">{form.formState.errors.ifscCode.message as string}</p>
@@ -233,7 +325,13 @@ function AccountForm({ onSubmit, defaultValues }: any) {
   );
 }
 
-function BankAccountItem({ account, onUpdate, onDelete }: any) {
+interface BankAccountItemProps {
+  account: BankAccount;
+  onUpdate: (data: BankAccountFormData) => void;
+  onDelete: () => void;
+}
+
+function BankAccountItem({ account, onUpdate, onDelete }: BankAccountItemProps) {
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [showFullNumber, setShowFullNumber] = useState(false);
   const { toast } = useToast();
@@ -248,140 +346,185 @@ function BankAccountItem({ account, onUpdate, onDelete }: any) {
     }
   }, [showFullNumber]);
 
-  const handleUpdate = async (data: any) => {
-    await onUpdate(data);
+  const handleUpdate = (data: BankAccountFormData) => {
+    onUpdate(data);
     setIsEditOpen(false);
   };
 
   const copyAccountNumber = async () => {
-    if (!showFullNumber) return;
-
-    try {
-      await navigator.clipboard.writeText(account.accountNumber);
-      toast({
-        title: "Account number copied",
-        description: "The account number has been copied to your clipboard",
-      });
-    } catch (err) {
-      toast({
-        title: "Failed to copy",
-        description: "Could not copy the account number to clipboard",
-        variant: "destructive",
-      });
-    }
+    await copyToClipboard(account.accountNumber, "Account number", toast);
   };
 
   const copyIfscCode = async () => {
-    try {
-      await navigator.clipboard.writeText(account.ifscCode);
-      toast({
-        title: "IFSC code copied",
-        description: "The IFSC code has been copied to your clipboard",
-      });
-    } catch (err) {
-      toast({
-        title: "Failed to copy",
-        description: "Could not copy the IFSC code to clipboard",
-        variant: "destructive",
-      });
-    }
+    await copyToClipboard(account.ifscCode, "IFSC code", toast);
+  };
+  
+  // Function to generate a color based on bank name for consistent bank colors
+  const getBankColor = (bankName: string) => {
+    const bankColors: Record<string, string> = {
+      "ICICI Bank": "from-orange-600 to-red-800",
+      "HDFC Bank": "from-blue-800 to-blue-600",
+      "SBI Bank": "from-blue-700 to-indigo-800",
+      "Axis Bank": "from-purple-700 to-purple-900",
+      "Kotak Mahindra Bank": "from-red-700 to-red-900",
+      "YES Bank": "from-blue-600 to-blue-800",
+      "American Express": "from-emerald-700 to-emerald-900",
+      "IndusInd Bank": "from-indigo-600 to-violet-800",
+      "IDFC Bank": "from-teal-700 to-teal-900",
+    };
+    
+    return bankColors[bankName as keyof typeof bankColors] || "from-slate-700 to-slate-900";
   };
 
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-start justify-between pb-8">
-        <div>
-          <CardTitle className="text-lg font-normal mb-1">{account.bankName}</CardTitle>
-          <div className="text-sm text-muted-foreground">{account.accountType}</div>
-        </div>
-        <div className="flex gap-2">
-          <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
-            <DialogTrigger asChild>
-              <Button variant="ghost" size="icon">
+    <Card className="overflow-hidden hover:shadow-md transition-shadow">
+      <div className={`bg-gradient-to-r ${getBankColor(account.bankName)} h-36 relative`}>
+        <div className="absolute inset-0 p-6 text-white flex flex-col justify-between">
+          <div className="flex justify-between items-start">
+            <div className="flex items-center">
+              <Building2 className="h-6 w-6 mr-2" />
+              <h3 className="text-xl font-semibold truncate max-w-[200px]">{account.bankName}</h3>
+            </div>
+            <div className="flex gap-1">
+              <Button variant="ghost" size="icon" className="h-7 w-7 text-white hover:bg-white/20 rounded-full" onClick={() => setIsEditOpen(true)}>
                 <Pencil className="h-4 w-4" />
+                <span className="sr-only">Edit</span>
               </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Edit Bank Account</DialogTitle>
-              </DialogHeader>
-              <AccountForm onSubmit={handleUpdate} defaultValues={account} />
-            </DialogContent>
-          </Dialog>
-
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button variant="ghost" size="icon">
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Delete Bank Account</AlertDialogTitle>
-                <AlertDialogDescription>
-                  Are you sure you want to delete this bank account? This action cannot be undone.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={onDelete}>Delete</AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-        </div>
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <button
-                className="text-base font-mono focus:outline-none transition-opacity hover:opacity-80"
-                onClick={() => setShowFullNumber(!showFullNumber)}
-                onContextMenu={(e) => {
-                  e.preventDefault();
-                  copyAccountNumber();
-                }}
-                title={showFullNumber ? "Press and hold to copy, click to hide" : "Click to view full number"}
-              >
-                {formatAccountNumber(account.accountNumber, showFullNumber)}
-              </button>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-7 w-7 text-white hover:bg-white/20 rounded-full">
+                    <Trash2 className="h-4 w-4" />
+                    <span className="sr-only">Delete</span>
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Delete Bank Account</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Are you sure you want to delete this bank account? This action cannot be undone.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={onDelete}>Delete</AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-medium">IFSC:</span>
-            <span className="text-sm font-mono">{account.ifscCode}</span>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-6 w-6"
-              onClick={copyIfscCode}
-              title="Copy IFSC code"
-            >
-              <Copy className="h-3 w-3" />
-            </Button>
+          
+          <div className="flex flex-col">
+            <div className="text-sm opacity-80 mb-1">{account.accountType}</div>
+            <div className="flex items-center gap-2">
+              <div 
+                className="text-xl font-mono tracking-wider cursor-pointer"
+                onClick={() => setShowFullNumber(!showFullNumber)}
+                title={showFullNumber ? "Click to hide" : "Click to view full number"}
+              >
+                {formatAccountNumber(account.accountNumber, showFullNumber)}
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6 text-white/70 hover:text-white hover:bg-white/20 rounded-full"
+                onClick={() => setShowFullNumber(!showFullNumber)}
+                title={showFullNumber ? "Hide account number" : "Show account number"}
+              >
+                {showFullNumber ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+              </Button>
+              {showFullNumber && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6 text-white/70 hover:text-white hover:bg-white/20 rounded-full"
+                  onClick={copyAccountNumber}
+                  title="Copy account number"
+                >
+                  <Copy className="h-3 w-3" />
+                </Button>
+              )}
+            </div>
           </div>
+        </div>
+      </div>
+      
+      <CardContent className="pt-6 pb-5">
+        <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Edit Bank Account</DialogTitle>
+            </DialogHeader>
+            <AccountForm onSubmit={handleUpdate} defaultValues={account} />
+          </DialogContent>
+        </Dialog>
+        
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1">
+              <div className="flex items-center text-sm text-muted-foreground">
+                <User2 className="h-3.5 w-3.5 mr-1.5 opacity-70" />
+                <span>Customer ID</span>
+              </div>
+              <div className="font-medium">
+                {account.customerId || "—"}
+              </div>
+            </div>
+            
+            <div className="space-y-1">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center text-sm text-muted-foreground">
+                  <CreditCard className="h-3.5 w-3.5 mr-1.5 opacity-70" />
+                  <span>IFSC Code</span>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6"
+                  onClick={copyIfscCode}
+                  title="Copy IFSC code"
+                >
+                  <Copy className="h-3 w-3" />
+                </Button>
+              </div>
+              <div className="font-mono text-sm cursor-pointer" onClick={copyIfscCode} title="Click to copy">
+                {account.ifscCode}
+              </div>
+            </div>
+          </div>
+          
           {(account.netBankingPassword || account.mpin) && (
-            <div className="text-sm space-y-1">
+            <div className="grid grid-cols-2 gap-4 pt-2 border-t">
               {account.netBankingPassword && (
-                <div>
-                  <span className="font-medium">Password Pattern:</span>{" "}
-                  <span className="font-mono">{account.netBankingPassword}</span>
+                <div className="space-y-1">
+                  <div className="flex items-center text-sm text-muted-foreground">
+                    <KeyRound className="h-3.5 w-3.5 mr-1.5 opacity-70" />
+                    <span>Password Pattern</span>
+                  </div>
+                  <div className="font-mono text-sm">{account.netBankingPassword}</div>
                 </div>
               )}
+              
               {account.mpin && (
-                <div>
-                  <span className="font-medium">MPIN:</span>{" "}
-                  <span className="font-mono">{account.mpin}</span>
+                <div className="space-y-1">
+                  <div className="flex items-center text-sm text-muted-foreground">
+                    <LockKeyhole className="h-3.5 w-3.5 mr-1.5 opacity-70" />
+                    <span>MPIN</span>
+                  </div>
+                  <div className="font-mono text-sm">{account.mpin}</div>
                 </div>
               )}
             </div>
           )}
+          
           {account.tags && account.tags.length > 0 && (
-            <div>
-              <span className="font-medium">Tags:</span>
-              <div className="flex flex-wrap gap-1">
+            <div className="pt-2 border-t">
+              <div className="flex items-center mb-2 text-sm text-muted-foreground">
+                <Tag className="h-3.5 w-3.5 mr-1.5 opacity-70" />
+                <span>Tags</span>
+              </div>
+              <div className="flex flex-wrap gap-1.5">
                 {account.tags.map((tag: string) => (
-                  <Badge key={tag} className="text-sm" variant="secondary">
+                  <Badge key={tag} variant="secondary" className="text-xs px-2 py-0.5">
                     {tag}
                   </Badge>
                 ))}
@@ -401,8 +544,8 @@ export default function BankAccounts() {
     queryKey: ["/api/bank-accounts"],
   });
 
-  const addAccountMutation = useMutation({
-    mutationFn: async (data: any) => {
+  const addAccountMutation = useMutation<any, Error, BankAccountFormData>({
+    mutationFn: async (data) => {
       const res = await apiRequest("POST", "/api/bank-accounts", data);
       return res.json();
     },
@@ -413,8 +556,8 @@ export default function BankAccounts() {
     },
   });
 
-  const updateAccountMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: number; data: any }) => {
+  const updateAccountMutation = useMutation<any, Error, { id: number; data: BankAccountFormData }>({
+    mutationFn: async ({ id, data }) => {
       const res = await apiRequest("PATCH", `/api/bank-accounts/${id}`, data);
       return res.json();
     },
